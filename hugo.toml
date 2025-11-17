@@ -1,4 +1,6 @@
 baseURL = 'https://site-37g.pages.dev'
 languageCode = 'en-US'
 title = 'DREADWARE Dev blog'
-theme = 'ananke'
+[module]
+  [[module.imports]]
+    path = "github.com/theNewDynamic/gohugo-theme-ananke"
