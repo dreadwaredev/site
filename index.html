@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DREADWARE Dev Blog</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/water.css@2/out/water.css">
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <style>body { max-width: 800px; margin: 40px auto; padding: 0 20px; }</style>
+</head>
+<body>
+  <div id="content">Loading…</div>
+
+  <script>
+    fetch('index.md')
+      .then(r => {
+        if (!r.ok) throw new Error('Markdown file not found');
+        return r.text();
+      })
+      .then(md => {
+        document.getElementById('content').innerHTML = marked.parse(md);
+      })
+      .catch(err => {
+        document.getElementById('content').innerHTML = 
+          `<p style="color:red">Error loading content: ${err.message}</p>`;
+      });
+  </script>
+</body>
+</html>
