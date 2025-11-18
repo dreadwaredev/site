@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DREADWARE Dev Blog</title>
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <style>
+    body { max-width: 1000px; margin: 40px auto; padding: 0 20px; font-family: system-ui; line-height: 1.6; }
+    .grid { display: grid; grid-template-columns: 1fr 280px; gap: 3rem; margin-top: 2rem; }
+    .toc-list { list-style: none; padding: 0; margin: 0; position: sticky; top: 20px; }
+    .toc-list li { margin: 0.8rem 0; }
+    .toc-list a { text-decoration: none; color: #0066cc; font-weight: 500; }
+    .toc-list a:hover { text-decoration: underline; }
+    .toc-date { font-size: 0.85rem; color: #666; float: right; }
+    article { scroll-margin-top: 80px; }
+    hr { border: 0; border-top: 1px solid #eee; margin: 3rem 0; }
+
+    @media (max-width: 900px) {
+      .grid { display: flex; flex-direction: column; }
+      .toc { order: -1; background: #f8f8f8; padding: 1.5rem; border-radius: 8px; }
+    }
+  </style>
+</head>
+<body>
+  <h1>DREADWARE Dev Blog</h1>
+
+  <div class="grid">
+    <div id="posts">{{POSTS}}</div>
+    <aside class="toc">
+      <strong>Posts</strong>
+      {{TOC}}
+    </aside>
+  </div>
+
+  <script>
+    document.querySelectorAll('.post-body').forEach(el => {
+      el.innerHTML = marked.parse(el.textContent);
+    });
+  </script>
+</body>
+</html>
