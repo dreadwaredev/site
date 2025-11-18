@@ -64,3 +64,14 @@ th, td {
 th {
     background: #161b22;
 }
+
+.grid-2 { 
+  display: grid; 
+  grid-template-columns: 1fr 1fr; 
+  gap: 2rem; 
+  margin: 2rem 0;
+}
+.col img { width: 100%; height: auto; }
+@media (max-width: 800px) { 
+  .grid-2 { grid-template-columns: 1fr; }
+}
