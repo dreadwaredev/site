@@ -76,16 +76,5 @@ Text[^1]
 
 
 
-<div class="grid-2">
-<div class="col">
-### Left side
-Lorem ipsum dolor sit amet, consectetur adipiscing elit.  
-Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.
-</div>
-<div class="col">
-### Right side
-Lorem ipsum dolor sit amet, consectetur adipiscing elit.  
-Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.
-</div>
-</div>
+
 
