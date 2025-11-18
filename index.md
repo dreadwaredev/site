@@ -13,6 +13,13 @@ This is a test page to get things working!
 1. First 
 2. Second
 
+
+| Left column                                      | Right column                                     |
+|--------------------------------------------------|--------------------------------------------------|
+| ### Title<br>Lorem ipsum dolor sit amet…         | ### Title<br>Ut enim ad minim veniam…            |
+| ```js<br>console.log("left")<br>```              | ```js<br>console.log("right")<br>```             |
+
+
 ---
 :smile: :rocket:
 
