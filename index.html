@@ -10,7 +10,9 @@
 </head>
 <body>
   <div id="content">Loading…</div>
-
+  <div class="grid-2">
+<div class="col">
+### Left side
   <script>
     fetch('index.md')
       .then(r => {
@@ -25,5 +27,13 @@
           `<p style="color:red">Error loading content: ${err.message}</p>`;
       });
   </script>
+</div>
+<div class="col">
+### Right side
+Lorem ipsum dolor sit amet, consectetur adipiscing elit.  
+Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.
+</div>
+</div>
+
 </body>
 </html>
