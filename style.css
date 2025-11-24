@@ -97,6 +97,11 @@ aside.toc {
     color: #ccc;
 }
 
+.post h2 {
+    border-left: 2px solid #ccc;
+    padding-left: 0.5em;
+}
+
 .post-title {
     margin-top: 0;
     margin-bottom: 0.35rem;
