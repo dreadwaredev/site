@@ -8,16 +8,109 @@
     <title>DREADWARE DEV</title>
 </head>
 <body>
-    <center><h1 id="title">DREADWARE DEV</h1></center>
+    <center><h1 id="title">DREADWARE</h1></center>
     <div class="grid">
-        <div id="posts"><article class="post" id="2025-11-21-System.Linq.Enumerable+WhereEnumerableIterator`1[System.Char]">
+        <div id="posts"><article class="post" id="2025-12-01-System.Linq.Enumerable+WhereEnumerableIterator`1[System.Char]">
+    <header>
+        <center><h1 class="post-title">Getting Started</h1></center>
+        <time datetime="2025-12-01" class="post-date">December 1, 2025</time>
+    </header>
+    <hr />
+    <div class="post-content"><h2 id="motivation">Motivation</h2>
+<p>In my last post, I described my frustration with modern software along with a desire to look back at the &quot;good ol' days&quot; of computing when software was simpler. Recently, simplicity in software is a guiding principal I've adopted, and that remains as one of the primary motivations for writing my own code editor. However, another important factor is that I really have no idea how these things work. There are some basic things that are obvious, but I have never entered the world of tool development or text editing, and I think having some hands-on experience would help me better apricate and understand software tools.</p>
+<p>So I can summarize my motivations:</p>
+<ul>
+<li>Need for a simple code editor</li>
+<li>Need for a code editor that works on an <em>air gapped</em> Windows 7 machine</li>
+<li>Need to free myself from as many dependencies as possible to remain in control of my own destiny</li>
+<li>Need to learn something new</li>
+</ul>
+<p>The motivations could also serve as goals for the project, and it's very likely that, by that measure, the project will fail. I will proceed, however. At the very least I will learn something new, which is my top priority. If I have to go back to using existing editors on Windows 11 it's not the end of the world, but I want to give this a try before accepting that fate.</p>
+<p>The question I need to ask myself next is &quot;how can I get this done?&quot;</p>
+<h2 id="software">Software</h2>
+<h3 id="code-editor">Code Editor</h3>
+<p>If I don't already have a code editor, how can I write the code for the editor? I'm going to start with notepad.exe. This might sound crazy, but it also serves as a milestone marker. I know that I can start using my own code editor to develop itself once I have the required feature parity with notepad.</p>
+<h3 id="compiler">Compiler</h3>
+<p>It's obvious, but in order to compile code into a useable program I need a compiler. I already went through great pain trying and failing to install Build Tools for Visual Studio on my Windows 7 machine, because it is offline. Even after creating the offline installer and manually deploying certificates, the installer does not function and no actionable error messages are written to the logs. I will try GCC next. I've used GCC for some embedded programming in the past, but not for Windows development. It looks like installing GCC on a machine without internet access is not difficult, but who can be sure? My success or failure will be noted in the next post.</p>
+<h2 id="hardware">Hardware</h2>
+<p>For transparency's sake, I will include the actual hardware I am using for my dev machine:</p>
+<p>HP EliteDesk 800 G2 Mini (refurbished)</p>
+<ul>
+<li>Intel Core i5-6500T @ 2.5ghz</li>
+<li>16gb DDR4 RAM</li>
+<li>250gb HDD</li>
+</ul>
+<h2 id="the-plan">The Plan</h2>
+<p>Before I start coding I think it's good to have a plan, even if the plan changes immediately and often. I know so little about how these things work that I expect this list to change dramatically. For now, these are the features I am looking at, roughly in order:</p>
+<p>Prereq: get a compiler installed and working</p>
+<ol>
+<li>Win32 Window
+<ol>
+<li>Message Loop</li>
+<li>Back Buffer + Blit</li>
+<li>Simple screen painting</li>
+</ol>
+</li>
+<li>Font + Text Rendering
+<ol>
+<li>Evaluate stb_truetype integration</li>
+<li>Render hardcoded text to screen</li>
+</ol>
+</li>
+<li>Typing, Cursor and Gap Buffer
+<ol>
+<li>Translate keystrokes to text</li>
+<li>Insert and delete text</li>
+<li>Blinking cursor</li>
+</ol>
+</li>
+<li>File I/O
+<ol>
+<li>Open, Close and Save files to disc</li>
+</ol>
+</li>
+<li>Code Navigation
+<ol>
+<li>Implement ability to search for, and jump to, text</li>
+<li>Show line numbers</li>
+</ol>
+</li>
+<li>Hotkeys
+<ol>
+<li>Copy, Cut, Paste</li>
+<li>Support common code-related commands</li>
+</ol>
+</li>
+<li>Multi-pane
+<ol>
+<li>Support having two files open at once</li>
+<li>Support having the same file open twice with independent cursors</li>
+</ol>
+</li>
+<li>External Process
+<ol>
+<li>Support running a BAT from a hotkey to compile code</li>
+<li>Support debugger integration (jump to line)</li>
+</ol>
+</li>
+<li>Color Themes
+<ol>
+<li>Support syntax highlighting</li>
+<li>Support custom colors</li>
+</ol>
+</li>
+</ol>
+<p>Something I want to note is that I don't have a plan to add mouse support. I have always lived in a world where a mouse was available to navigate code and I think it's always held me back. I want to get to a point where my hands never leave the keyboard, but I lack the discipline to do it myself. This could be an opportunity to force myself to forego the mouse by simply not supporting it.</p>
+<p>Once this post goes live I will begin to put my plan into action.</p>
+</div>
+</article><article class="post" id="2025-11-21-System.Linq.Enumerable+WhereEnumerableIterator`1[System.Char]">
     <header>
         <center><h1 class="post-title">Looking Back</h1></center>
         <time datetime="2025-11-21" class="post-date">November 21, 2025</time>
     </header>
     <hr />
     <div class="post-content"><h2 id="the-past">The Past</h2>
-<p>My very first home computer was a Windows 95 machine which crashed frequently. I upgraded to Windows ME which made things worse, but I was young and had time. I ended up learning a lot to play Diablo 2 without losing my hardcore character to lag or crashes. I can still vividly remember the horror of hearing &quot;<a href="https://www.youtube.com/watch?v=8gYEFASEvXg">Looking for Baal</a>&quot; as the screen stayed black, only to finally load in with my character dead on the ground. The internet was still in its infancy at the time; there was no AI, no Google. I just had to try stuff until it worked.</p>
+<p>My very first home computer was a Windows 95 machine which crashed frequently (although <a href="https://x.com/MisterSpace3/status/1995362984605184270?s=20">this could have been a hardware issue</a> all along?). I upgraded to Windows ME which made things worse, but I was young and had time. I ended up learning a lot to play Diablo 2 without losing my hardcore character to lag or crashes. I can still vividly remember the horror of hearing &quot;<a href="https://www.youtube.com/watch?v=8gYEFASEvXg">Looking for Baal</a>&quot; as the screen stayed black, only to finally load in with my character dead on the ground. The internet was still in its infancy at the time; there was no AI, no Google. I just had to try stuff until it worked.</p>
 <p>When I got to college I used Windows XP. The OS crashes were mostly gone. For my C++ course work, we were instructed to use an IDE called Quincy which was primitive by modern standards. It crashed all the time (but Windows XP didn't) and I learned the hard way that pressing CTRL+S every few seconds was essential. This is a habit I continue to this day, although most modern software autosaves. Even with all these problems, I don't ever remember feeling discouraged when it came to programming, or about computers in general. Maybe I was just a naive youth, but I think my enthusiasm endured because I was witnessing computer hardware and software make continual improvements every day.</p>
 <h2 id="the-present">The Present</h2>
 <p>Now it's 2025. I've been using Windows 11 and Visual Studio for a long time, on both professional and personal projects. I find myself frequently feeling discouraged whenever I sit down to program. Time is now far more scarce than when I was young and every minute that I waste with OS updates, incompatibilities, and slowness feels excruciating. It's frustrating and makes me want to quit. Modern software has become exceptionally over complicated and it sucks! Even <a href="https://x.com/WindowsLatest/status/1991952313217638540">opening a folder takes forever</a> on a modern gaming system! At least I'm <a href="https://x.com/ryanjfleury/status/1992373926509551765">not alone</a> <a href="https://x.com/Jonathan_Blow/status/1985114439805550952">in feeling</a> <a href="https://x.com/cmuratori/status/1949880554079605145">this way</a>.</p>
@@ -48,7 +141,7 @@
             <hr/>
             <ul class="toc-list">
                 <li><a href="#title">Top</a></li>
-                <li><a href="#2025-11-21-System.Linq.Enumerable+WhereEnumerableIterator`1[System.Char]">Looking Back</a></li>
+                <li><a href="#2025-12-01-System.Linq.Enumerable+WhereEnumerableIterator`1[System.Char]">Getting Started</a></li><li><a href="#2025-11-21-System.Linq.Enumerable+WhereEnumerableIterator`1[System.Char]">Looking Back</a></li>
             </ul>
         </aside>
     </div>
