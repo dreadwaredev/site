@@ -14,7 +14,269 @@
 <body>
     <center><h1 id="title">DREADWARE</h1></center>
     <div class="grid">
-        <div id="posts"><article class="post" id="2025-12-01-System.Linq.Enumerable+WhereEnumerableIterator`1[System.Char]">
+        <div id="posts"><article class="post" id="2025-12-03-milestone-1">
+    <header>
+        <center><h1 class="post-title">Milestone 1</h1></center>
+        <time datetime="2025-12-03" class="post-date">December 3, 2025</time>
+    </header>
+    <hr />
+    <div class="post-content"><h2 id="first-steps">First Steps</h2>
+<p>Earlier, I told you why I’m insane enough to write my own code editor and explained my approach. Today, I'm sharing some of the code. It’s starting to feel like I might actually get this thing to work.</p>
+<p>First, I had to setup a compiler. Since I recently tried and failed to get the Microsoft compiler working, I tried GCC next. This was actually a great experience! I managed to find a version of GCC that works with Windows 7 (GCC 14.2.0) and grabbed it from <a href="https://winlibs.com/#download-release">winlibs.com</a>. I opted for the version <em>without</em> LLVM/Clang/LLD/LLDB, downloaded the zip, extracted the binaries to a folder on my machine, and added it to my PATH. I could successfully hit it with <code>gcc --version</code>. This is how software should be distributed! Why can't Microsoft distribute their compiler this way?</p>
+<p>I then wrote a tiny C program:</p>
+<div class="code-wrapper"><pre><code class="language-c">int main(int argc, char* argv[]) {
+	return 0;
+}
+</code></pre></div>
+<p>...and a Windows batch file to automate compilation:</p>
+<div class="code-wrapper"><pre><code class="language-bat">@echo off
+setlocal
+
+set FLAGS=-Wall -Wextra -Werror -std=c99
+
+echo.
+if &quot;%~1&quot;==&quot;debug&quot; (
+	echo [DEBUG BUILD]
+	set FLAGS=-Og -g -DINTERNAL_BUILD %FLAGS%
+	set OUTPUT_DIR=.\bin\debug\
+) else (
+	echo [RELEASE BUILD]
+	set FLAGS=-O2 -s %FLAGS%
+	set OUTPUT_DIR=.\bin\release\
+)
+if not exist &quot;%OUTPUT_DIR%&quot; (
+	mkdir &quot;%OUTPUT_DIR%&quot;
+)
+
+echo Invoking cGCC...
+pushd %OUTPUT_DIR%
+gcc %FLAGS% -o de.exe ..\..\src\dreadedit.c
+if %ERRORLEVEL% equ 0 (
+	echo Build Success
+) else (
+	echo Build Failure
+)
+popd
+
+echo Cleaning temp files...
+pushd &quot;%OUTPUT_DIR%&quot;
+del *.o *.obj 2&gt; NUL
+popd
+
+endlocal
+exit /b 0
+</code></pre></div>
+<p>This let me use <code>build</code> or <code>build debug</code> commands to build my executable.</p>
+<ul class="contains-task-list">
+<li class="task-list-item"><input disabled="disabled" type="checkbox" checked="checked" /> Prereq: get a compiler installed and working</li>
+</ul>
+<p>The next step in my plan was to create and open a window. I found that win32 has some built-in functions for text rendering which I leveraged to present some hardcoded text:</p>
+<p><a href="img/2025-02-12-01.png" target="_blank" rel="noopener noreferrer"><img src="img/2025-02-12-01.png" alt="milestone" //></a></p>
+<p>At this point I had most of items 1 and 2 of my plan complete:</p>
+<ul class="contains-task-list">
+<li class="task-list-item"><input disabled="disabled" type="checkbox" checked="checked" /> Win32 Window
+<ul class="contains-task-list">
+<li class="task-list-item"><input disabled="disabled" type="checkbox" checked="checked" /> Message Loop</li>
+<li class="task-list-item"><input disabled="disabled" type="checkbox" checked="checked" /> Back Buffer + Blit</li>
+<li class="task-list-item"><input disabled="disabled" type="checkbox" checked="checked" /> Simple screen painting</li>
+</ul>
+</li>
+<li class="task-list-item"><input disabled="disabled" type="checkbox" checked="checked" /> Font + Text Rendering
+<ul class="contains-task-list">
+<li class="task-list-item"><input disabled="disabled" type="checkbox" /> Evaluate stb_truetype integration</li>
+<li class="task-list-item"><input disabled="disabled" type="checkbox" checked="checked" /> Render hardcoded text to screen</li>
+</ul>
+</li>
+</ul>
+<p>I skipped looking at stb_truetype since win32 has built-in text rendering. I may revisit it later.</p>
+<p>Next up was handling input. I made a simple character buffer and added handling of <code>WM_KEYDOWN</code> and <code>WM_CHAR</code> messages to get some text into the buffer to prove that typing works:</p>
+<div class="code-wrapper"><pre><code class="language-c">int position = 0;
+char buffer[255];
+void insert_character(char c) {
+	buffer[position++] = c;
+}
+</code></pre></div>
+<div class="code-wrapper"><pre><code class="language-c">TextOutA(hdc, 0, 0, buffer, length);
+</code></pre></div>
+<p>However, it wasn't drawing to the screen as I expected. I fired up <a href="https://remedybg.itch.io/remedybg">RemedyBG</a> and ran into a problem: breakpoints were not working. I suspected the debugger was not able to load the debug symbols, so I started to investigate.</p>
+<p>I didn't see a .pdb generated, but GCC supposedly embeds debug stuff into the .exe itself, so I didn't think much of it. After reading, it seems RemedyBG requires the information within a .pdb to get breakpoints and variable inspection working. I looked to see if GCC could output a .pdb, and the answer was: yes it can! With <code>-g -gcodeview</code> flags it spits out a .pdb. However, RemedyBG was still not able to add breakpoints. I did some more reading, asked a few questions to an LLM, and discovered that GCC <em>can</em> output a .pdb, but the generated debug information is not sufficient for RemdyBG. I could find no obvious way to coerce GCC into providing what RemedyBG requires.</p>
+<p>At this point I had a compiler that worked but no debugger, which was going to become an increasingly nasty problem for me. I looked at the <a href="https://github.com/EpicGamesExt/raddebugger/">RAD Debugger</a>, but from what I can tell it suffers from the same problems as RemedyBG without a valid Microsoft .pdb near the executable.</p>
+<p>Luckily, my trusty LLM told me that <a href="https://clang.llvm.org/">Clang</a> is able to output a proper .pdb. My decision to download GCC without Clang now seemed foolish. I looked for a version of <a href="https://github.com/llvm/llvm-project/releases/tag/llvmorg-15.0.7">Clang for Windows 7</a>, downloaded <code>LLVM-15.0.7-win64.exe</code> and installed it.</p>
+<p>This was the first time I've used Clang, so I wasn't sure what I was in for. I'm happy to say that going from GCC to Clang was pain free. I updated a couple lines in my .bat and Clang generated a .pdb that RemedyBG could use. After a single debug session I found that I was not calling <code>InvalidateRect(hwnd, NULL, TRUE);</code> in the right place, so I wasn't seeing text because Windows was not redrawing the graphics for me. Once I added that, I was in business!</p>
+<h2 id="current-state">Current State</h2>
+<p>Here is where I am today:</p>
+<ul class="contains-task-list">
+<li class="task-list-item"><input disabled="disabled" type="checkbox" /> Typing, Cursor and Gap Buffer
+<ul class="contains-task-list">
+<li class="task-list-item"><input disabled="disabled" type="checkbox" checked="checked" /> Translate keystrokes to text</li>
+<li class="task-list-item"><input disabled="disabled" type="checkbox" /> Insert and delete text</li>
+<li class="task-list-item"><input disabled="disabled" type="checkbox" /> Blinking cursor</li>
+</ul>
+</li>
+</ul>
+<p>I'll dump my current .bat here for posterity:</p>
+<div class="code-wrapper"><pre><code class="language-bat">@echo off
+setlocal
+
+set FLAGS=-Wall -Wextra -Werror -std=c99
+set FLAGS=%FLAGS% -target x86_64-w64-windows-gnu -fuse-ld=lld
+set FLAGS=%FLAGS% -lgdi32 -luser32 -mwindows
+
+echo.
+if &quot;%~1&quot;==&quot;debug&quot; (
+	echo [DEBUG BUILD]
+	set FLAGS=%FLAGS% -Og -g -gcodeview -Wl,--pdb=de.pdb -DINTERNAL_BUILD
+	set OUTPUT_DIR=.\bin\debug\
+) else (
+	echo [RELEASE BUILD]
+	set FLAGS=-O2 -s %COMPILER_FLAGS%
+	set OUTPUT_DIR=.\bin\release\
+)
+if not exist &quot;%OUTPUT_DIR%&quot; (
+	mkdir &quot;%OUTPUT_DIR%&quot;
+)
+
+echo Invoking compiler...
+pushd %OUTPUT_DIR%
+clang %FLAGS% -o de.exe ..\..\src\dreadedit.c
+if %ERRORLEVEL% equ 0 (
+	echo Build Success
+) else (
+	echo Build Failure
+)
+popd
+
+echo Cleaning temp files...
+pushd &quot;%OUTPUT_DIR%&quot;
+del *.o *.obj 2&gt; NUL
+popd
+
+endlocal
+exit /b 0
+</code></pre></div>
+<p>Here is what I have at the top of my .c file to handle GCC and Clang warnings, along with MSC since that is what I am accustomed to using:</p>
+<div class="code-wrapper"><pre><code class="language-c">//////////////////////////////////////////////////////////////////////////////////////////
+// COMPILER
+//////////////////////////////////////////////////////////////////////////////////////////
+
+#if defined(__GNUC__)
+#   define COMPILER_GCC
+#elif defined(__clang__)
+#  define COMPILER_CLANG
+#elif defined(_MSC_VER)
+#   define COMPILER_MSC
+#else
+#   error compiler not supported
+#endif
+
+#if defined(COMPILER_GCC)
+#  if defined(INTERNAL_BUILD)
+#    pragma GCC diagnostic ignored &quot;-Wmissing-field-initializers&quot;
+#    pragma GCC diagnostic ignored &quot;-Wunused-function&quot;
+#    pragma GCC diagnostic ignored &quot;-Wunused-parameter&quot;
+#    pragma GCC diagnostic ignored &quot;-Wunused-variable&quot;
+#    pragma GCC diagnostic ignored &quot;-Wunused-but-set-variable&quot;
+#  endif
+#  define inline inline __attribute__((always_inline))
+#elif defined(COMPILER_CLANG)
+#  if defined(INTERNAL_BUILD)
+#    pragma clang diagnostic ignored &quot;-Wmissing-field-initializers&quot;
+#    pragma clang diagnostic ignored &quot;-Wunused-function&quot;
+#    pragma clang diagnostic ignored &quot;-Wunused-parameter&quot;
+#    pragma clang diagnostic ignored &quot;-Wunused-variable&quot;
+#    pragma clang diagnostic ignored &quot;-Wunused-but-set-variable&quot;
+#  endif
+#  define inline inline __attribute__((always_inline))
+#elif defined(COMPILER_MSC)
+#  pragma warning(disable:4201) // nameless struct/union
+#  if defined(INTERNAL_BUILD)
+#    pragma warning(disable:4100) // unreferenced formal parameter
+#    pragma warning(disable:4101) // unreferenced local variable
+#    pragma warning(disable:4127) // conditional expression is constant
+#    pragma warning(disable:4189) // local variable is initialized but not referenced
+#    pragma warning(disable:4505) // unreferenced local function has been removed
+#    pragma warning(disable:4702) // unreachable code
+#  endif
+#  define inline __forceinline
+#endif
+
+</code></pre></div>
+<p>I also want to share how I am currently processing keystrokes. I use <code>WM_KEYDOWN</code> to filter some non-character keys that I will likely need in the future. I then let Windows translate the keystrokes for me and capture characters with <code>WM_CHAR</code> as seen here:</p>
+<div class="code-wrapper"><pre><code class="language-c">#define COLOR_BACK RGB(0,0,0)
+#define COLOR_TEXT RGB(255,255,255)
+
+LRESULT CALLBACK
+WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) {
+	switch (uMsg) {
+		case WM_DESTROY:
+			PostQuitMessage(0);
+			return 0;
+		case WM_CLOSE:
+			DestroyWindow(hwnd);
+			return 0;
+		case WM_PAINT: {
+				PAINTSTRUCT ps;
+				HDC hdc = BeginPaint(hwnd, &amp;ps);
+				
+				HBRUSH hBrush = CreateSolidBrush(COLOR_BACKGROUND);
+				RECT rc;
+				GetClientRect(hwnd, &amp;rc);
+				FillRect(hdc, &amp;rc, hBrush);
+				DeleteObject(hBrush);
+	
+				SetBkColor(hdc, COLOR_BACK);
+				SetTextColor(hdc, COLOR_TEXT);
+				u32 length = cstr_length(buffer);
+				if (length &gt; 0) {
+					TextOutA(hdc, 0, 0, buffer, length);
+				}
+				EndPaint(hwnd, &amp;ps);
+			}
+			return 0;
+		case WM_KEYDOWN:
+			switch (wParam) {
+				case VK_LEFT:
+				case VK_RIGHT:
+				case VK_DOWN:
+				case VK_UP:
+				case VK_HOME:
+				case VK_END:
+				case VK_DELETE:
+				case VK_BACK:
+					break;
+				case VK_ESCAPE:
+					PostMessage(hwnd, WM_CLOSE, 0, 0);
+					break;
+
+			}
+			return 0;
+		case WM_LBUTTONDOWN:
+			MessageBeep(MB_ICONINFORMATION);
+			return 0;
+		case WM_RBUTTONDOWN:
+			MessageBeep(MB_ICONINFORMATION);
+			return 0;
+		case WM_CHAR:
+			switch (wParam) {
+				case VK_RETURN:
+					break;
+				case VK_TAB:
+					break;
+				case VK_BACK:
+					break;
+				default:
+					if (wParam &gt;= 32 &amp;&amp; wParam != 127) {
+						insert_character((char)wParam);
+						InvalidateRect(hwnd, NULL, TRUE);
+					}
+			}
+			break;
+	}
+	return DefWindowProc(hwnd, uMsg, wParam, lParam);
+}
+</code></pre></div>
+</div>
+</article><article class="post" id="2025-12-01-getting-started">
     <header>
         <center><h1 class="post-title">Getting Started</h1></center>
         <time datetime="2025-12-01" class="post-date">December 1, 2025</time>
@@ -107,7 +369,7 @@
 <p>Something I want to note is that I don't have a plan to add mouse support. I have always lived in a world where a mouse was available to navigate code and I think it's always held me back. I want to get to a point where my hands never leave the keyboard, but I lack the discipline to do it myself. This could be an opportunity to force myself to forego the mouse by simply not supporting it.</p>
 <p>Once this post goes live I will begin to put my plan into action.</p>
 </div>
-</article><article class="post" id="2025-11-21-System.Linq.Enumerable+WhereEnumerableIterator`1[System.Char]">
+</article><article class="post" id="2025-11-21-looking-back">
     <header>
         <center><h1 class="post-title">Looking Back</h1></center>
         <time datetime="2025-11-21" class="post-date">November 21, 2025</time>
@@ -142,10 +404,10 @@
 </article></div>
         <aside class="toc">
             <center><strong>Table of Contents</strong></center>
-            <hr/>
+            <hr />
             <ul class="toc-list">
-                <li><a href="#title">Top</a></li>
-                <li><a href="#2025-12-01-System.Linq.Enumerable+WhereEnumerableIterator`1[System.Char]">Getting Started</a></li><li><a href="#2025-11-21-System.Linq.Enumerable+WhereEnumerableIterator`1[System.Char]">Looking Back</a></li>
+                <li><a href="#title">[Top]</a></li>
+                <li><a href="#2025-12-03-milestone-1">Milestone 1</a></li><li><a href="#2025-12-01-getting-started">Getting Started</a></li><li><a href="#2025-11-21-looking-back">Looking Back</a></li>
             </ul>
         </aside>
     </div>
