@@ -3,7 +3,7 @@
     font-size: clamp(1.8rem, 6vw, 3rem);
     font-weight: 700;
     letter-spacing: -0.5px;
-    margin: 0 0 1rem 0;
+    margin: 0 0 1rem;
     border-bottom: 4px solid #8b5cf6;
     border-radius: 2px;
 }
@@ -15,18 +15,15 @@ body {
     font-family: system-ui;
     line-height: 1.6;
     background: #0c0e12;
-    color: #aaa
+    color: #aaa;
+    overflow-x: auto;
 }
 
 hr {
     border: none;
     height: 4px;
-    background: linear-gradient(to right, #111318, #8b5cf6);
+    background: #eee;
     border-radius: 2px;
-}
-
-.toc hr {
-    background: #8b5cf6;
 }
 
 h1 {
@@ -43,6 +40,15 @@ a:hover {
 
 a:visited {
     color: #15803d;
+}
+
+a img {
+    cursor: zoom-in;
+    border: none;
+}
+
+a img:hover {
+    opacity: 0.7;
 }
 
 article {
@@ -85,8 +91,16 @@ aside.toc {
     list-style: none;
     padding: 0;
     margin: 0;
-    position: sticky;
-    top: 20px;
+}
+
+#posts {
+    overflow-x: auto;
+    max-width: 100%;
+}
+
+.post {
+    overflow-x: auto;
+    max-width: 100%;
 }
 
 .post h1,
@@ -102,22 +116,44 @@ aside.toc {
     background: linear-gradient(to right, #111318, #8b5cf6);
 }
 
+.post img {
+    max-width: 100%;
+    height: auto;
+    width: 100%;
+    object-fit: contain;
+    display: block;
+}
+
 .post-title {
-    margin-top: 0;
-    margin-bottom: 0.35rem;
+    margin: 0 0 .35rem;
     line-height: 1.1;
 }
 
 .post-content {
     color: #e2e8f0;
+    overflow-x: auto;
+}
+
+.code-wrapper {
+    background: #000;
+    max-width: 100%;
+    overflow-x: auto;
+    margin: 1rem -1.5rem;
+    padding: 0 1.5rem;
 }
 
 .post-content pre {
-    background: #000;
     padding: 1rem;
-    border-radius: 12px;
-    border: 1px solid #eee;
+    margin: 0;
+    width: 100% !important;
+    min-width: 0;
+    max-width: none;
+    white-space: pre;
     overflow-x: auto;
+    display: block;
+    box-sizing: border-box;
+    background: transparent;
+    border: 1px solid #eee;
 }
 
 .post-content code {
@@ -127,12 +163,18 @@ aside.toc {
     line-height: 1.45;
     tab-size: 4;
     color: #888;
+    padding: 0.2rem 0.2rem;
+}
+
+.post-content pre code {
+    display: block;
+    white-space: inherit;
+    background: transparent
 }
 
 .post-date {
     font-size: 0.85rem;
-    margin-top: 0;
-    margin-bottom: 1.5rem;
+    margin: 1.5rem 0 0;
     text-align: right;
     color: #888;
 }
@@ -154,7 +196,6 @@ aside.toc {
         margin: 0;
         padding: 1.5rem;
         background: #111318;
-        border-radius: 12px;
         border: 1px solid #eee;
         box-sizing: border-box;
     }
@@ -165,4 +206,52 @@ aside.toc {
         font-size: 1.1rem;
         color: #ccc;
     }
+
+    .toc {
+        display: none;
+    }
+
+    .post-content,
+    .post,
+    #posts {
+        overflow-x: auto;
+    }
+}
+
+.post-content input[type="checkbox"] {
+    appearance: none;
+    -webkit-appearance: none;
+    width: 1.2em;
+    height: 1.2em;
+    margin: 0 .4em 0 0;
+    vertical-align: middle;
+    ;
+    border: 2px solid #8b5cf6;
+    border-radius: 4px;
+    background: transparent;
+    position: relative;
+    cursor: default;
+}
+
+.post-content input[type="checkbox"] {
+    background: transparent;
+}
+
+.post-content input[type="checkbox"]:checked {
+    background: #8b5cf6;
+}
+
+.post-content input[type="checkbox"]:checked::after {
+    content: "✓";
+    position: absolute;
+    inset: 0;
+    color: #fff;
+    font-size: 1em;
+    font-weight: bold;
+    line-height: 1.1;
+    text-align: center;
+}
+
+.post-content input[type="checkbox"]:hover {
+    box-shadow: 0 0 0 3px rgba(139,92,246,.25);
 }
