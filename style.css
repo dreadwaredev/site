@@ -6,6 +6,8 @@
     margin: 0 0 1rem;
     border-bottom: 4px solid #8b5cf6;
     border-radius: 2px;
+    text-shadow: -3px -3px 0 #22c55e,
+                  3px  3px 0 #8b5cf6;
 }
 
 body {
