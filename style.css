@@ -204,10 +204,6 @@ aside.toc {
 
 /* mobile layout switch on smaller screens */
 @media (max-width: 900px) {
-    #title {
-        text-shadow: -1px -1px 0 #22c55e,
-                      1px  1px 0 #8b5cf6;
-    }
     .grid {
         display: flex;
         flex-direction: column;
