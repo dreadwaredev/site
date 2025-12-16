@@ -7,7 +7,7 @@
     position: relative;
     display: block;
     text-align: center;
-    text-shadow: -3px -3px 0 #22c55e, 3px 3px 0 #8b5cf6;
+    text-shadow: -2px -2px 0 #22c55e, 2px 2px 0 #8b5cf6;
     width: 100%;
 }
 #title::before {
@@ -17,7 +17,7 @@
     width: 50%;
     height: 4px;
     top: calc(100% + 4px);
-    background: #8b5cf6;
+    background: #eee;
     border-radius: 2px 0 0 2px;
 }
 #title::after {
@@ -27,7 +27,7 @@
     width: 50%;
     height: 4px;
     top: 100%;
-    background: #22c55e;
+    background: #eee;
     border-radius: 0 2px 2px 0;
 }
 
