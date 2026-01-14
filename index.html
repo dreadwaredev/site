@@ -14,7 +14,289 @@
 <body>
     <center><h1 id="title">DREADWARE</h1></center>
     <div class="grid">
-        <div id="posts"><article class="post" id="2025-12-03-milestone-1">
+        <div id="posts"><article class="post" id="2025-12-11-milestone-2--gap-buffers">
+    <header>
+        <center><h1 class="post-title">Milestone 2 - Gap Buffers</h1></center>
+        <time datetime="2025-12-11" class="post-date">December 11, 2025</time>
+    </header>
+    <hr />
+    <div class="post-content"><p>At the conclusion of Milestone 1, I could type text in a line and have it show up in the window, and could even backspace from the end of the string. Next I want to add a cursor that can move left and right with the ability to insert and delete text anywhere in the string.</p>
+<p>Something that came up in my research of text editors was the concept of a <em>gap buffer</em>. A gap buffer is a segment of memory, representing a string, that is subdivided into three regions: the string that appears before cursor, a buffer of unused space, and the remainder of the string that comes after the cursor. Partitioning the memory this way allows a user to type, inserting characters at the cursor (within the gap region) without having to move memory on every keystroke.</p>
+<p>Without any references, this is the gap buffer scheme I started with to give me a predictable, fixed-size buffer:</p>
+<div class="code-wrapper"><pre><code class="language-c">// constants
+#define GAP_BUFFER_DATA_LENGTH	MB(2)
+
+// types
+typedef struct {
+	i8  data[GAP_BUFFER_DATA_LENGTH];
+	u64 gap_start;
+	u64 gap_end;
+} gap_buffer;
+</code></pre></div>
+<p>The obvious constraint here is that I am enforcing a limit of 2MB on each buffer, which might be a problem down the road. However, I'm taking a very iterative approach so I will handle dynamic/block allocations at a later time.  I am doing this to try to avoid over-designing the system before I've even used it.</p>
+<blockquote>
+<p>&quot;Always write the usage code first.&quot; - Unknown wise man</p>
+</blockquote>
+<p>Something I picked up along the way was the idea that the usage code should be written before the code itself. This was counterintuitive to me when I first heard it since many IDEs, and certainly the compiler, will complain if you are using code that doesn't exist yet. The red squiggles in Visual Studio certainly guide a developer to write a function first and use it second, but this can lead to bad design due to incorrect assumptions. If the usage code is written first, the API generally becomes much more clear. Instead of trying to imagine all of the different ways a function could be possibly be used in a system that doesn't exist, it makes much more sense to write the usages of the function in the system where they are needed, and then design the API based on what data is present and needed at the time of usage. This generally makes API design simple and concise.</p>
+<p>Here are the functions I added to get the gap buffer working:</p>
+<div class="code-wrapper"><pre><code class="language-c">// functions
+static void
+gb_reset(gap_buffer* gb) {
+	gb-&gt;gap_start = 0;
+	gb-&gt;gap_end = GAP_BUFFER_DATA_LENGTH;
+}
+
+static u64
+gb_text_length(gap_buffer* gb) {
+	return GAP_BUFFER_DATA_LENGTH - (gb-&gt;gap_end - gb-&gt;gap_start);
+}
+
+static void
+gb_move_gap_to_cursor(gap_buffer* gb, u64 cursor) {
+	// move gap left
+	if (cursor &lt; gb-&gt;gap_start) {
+		u64 len = gb-&gt;gap_start - cursor;
+		mem_move(gb-&gt;data + cursor, gb-&gt;data + gb-&gt;gap_end - len, len);
+		gb-&gt;gap_end   -= len;
+		gb-&gt;gap_start -= len;
+	}
+	// move gap right
+	else if (cursor &gt; gb-&gt;gap_start) {
+		u64 len = cursor - gb-&gt;gap_start;
+		mem_move(gb-&gt;data + gb-&gt;gap_end, gb-&gt;data + gb-&gt;gap_start, len);
+		gb-&gt;gap_start += len;
+		gb-&gt;gap_end   += len;
+	}
+}
+
+static void
+gb_insert(gap_buffer* gb, u64 cursor, char c) {
+	gb_move_gap_to_cursor(gb, cursor);
+	if (gb-&gt;gap_start == gb-&gt;gap_end) {
+		return;
+	}
+	gb-&gt;data[gb-&gt;gap_start++] = c;
+}
+
+static void
+gb_backspace(gap_buffer* gb, u64 cursor) {
+	if (cursor == 0) {
+		return;
+	}
+	gb_move_gap_to_cursor(gb, cursor);
+	gb-&gt;gap_start--;
+}
+
+static void
+gb_delete(gap_buffer* gb, u64 cursor) {
+	u64 length = gb_text_length(gb);
+	if (length &lt;= 0 || cursor &gt;= length) {
+		return;
+	}
+	gb_move_gap_to_cursor(gb, cursor);
+	gb-&gt;gap_end++;
+}
+</code></pre></div>
+<p>Most of those functions are pretty straight forward, leveraging <code>gb_move_gap_to_cursor</code> to manage the gap as a user types. It takes an offset that I am calling &quot;cursor&quot; as the point of future insertion. That means I will copy all of the memory within a span to the left or right of the buffer, based on the the cursor's position relative to the existing gap. The cursor does not know about the gap, so it's an offset of characters within the string.</p>
+<p>To connect the gap buffer to keyboard events, I simply call the functions within my <code>WndProc</code> and replace the old instances of <code>insert_character</code>:</p>
+<div class="code-wrapper"><pre><code class="language-c">case WM_KEYDOWN: {
+	data = (ded_data*)GetWindowLongPtr(hwnd, GWLP_USERDATA);
+	switch (wParam) {
+		case VK_LEFT: {
+			if (data-&gt;cursor &gt; 0) {
+						data-&gt;cursor--;
+			}
+		}
+		break;
+		
+		case VK_RIGHT: {
+			if (data-&gt;cursor &lt; gb_text_length(&amp;data-&gt;gb)) {
+				data-&gt;cursor++;
+			}
+		}
+		break;
+
+		case VK_DELETE: {
+			gb_delete(&amp;data-&gt;gb, data-&gt;cursor);
+		}
+		break;
+
+		case VK_BACK: {
+			gb_backspace(&amp;data-&gt;gb, data-&gt;cursor);
+			if (data-&gt;cursor &gt; 0) {
+				data-&gt;cursor--;
+			}
+		}
+		break;
+
+		case VK_ESCAPE: {
+			PostMessage(hwnd, WM_CLOSE, 0, 0);
+		}
+		break;
+
+	}
+	InvalidateRect(hwnd, NULL, TRUE);
+}
+return 0;
+
+case WM_CHAR: {
+	data = (ded_data*)GetWindowLongPtr(hwnd, GWLP_USERDATA);
+	switch (wParam) {
+		case VK_TAB:{
+			gb_insert(&amp;data-&gt;gb, data-&gt;cursor, '\t');
+			data-&gt;cursor++;
+		}
+		break;
+
+		default: {
+			if (wParam &gt;= 32 &amp;&amp; wParam &lt;= 126) {
+				gb_insert(&amp;data-&gt;gb, data-&gt;cursor, (char)wParam);
+				data-&gt;cursor++;
+			}
+		}
+	}
+	InvalidateRect(hwnd, NULL, TRUE);
+}
+break;
+</code></pre></div>
+<p>There is, of course, a lot of room for optimizations here, but I don't think most of this code is going to end up staying around very long. This became clear as I started writing the print function for the gap buffer. Here is what I started with:</p>
+<div class="code-wrapper"><pre><code class="language-c">static i32
+print_token(HDC hdc, char* s, u64 len, i32 x, i32 y) {
+	// TODO: determine token type and select colors
+	SetBkColor(hdc, COLOR_BACK);
+	SetTextColor(hdc, COLOR_TEXT);
+
+	SIZE size;
+	if (*s == '\t') {
+		TextOutA(hdc, x, y, &quot;    &quot;, 4);
+		GetTextExtentPoint32A(hdc, &quot;    &quot;, 4, &amp;size);
+	}
+	else {
+		TextOutA(hdc, x, y, s, len);
+		GetTextExtentPoint32A(hdc, s, len, &amp;size);
+	}
+	
+	return size.cx;
+}
+
+static void
+gb_draw(HDC hdc, gap_buffer* gb, u64 cursor) {
+	i32 x = 0;
+	i32 y = 0;
+
+	char token[255];
+	u64  token_length = 0;
+	for (u64 i = 0; i &lt; GAP_BUFFER_DATA_LENGTH; i++) {
+		if (i == gb-&gt;gap_start) {
+			i = gb-&gt;gap_end - 1;
+			continue;
+		}
+		switch (gb-&gt;data[i]) {
+			case ' ' :
+			case '\t': {
+				if (token_length &gt; 0) {
+					x += print_token(hdc, token, token_length, x, y);
+				}
+				token_length = 0;
+				x += print_token(hdc, gb-&gt;data + i, 1, x, y);
+			}
+			break;
+
+			// TODO: handle /r/n
+			// TODO: increment Y
+			case '\r':
+			case '\n': {
+				if (token_length &gt; 0) {
+					x += print_token(hdc, token, token_length, x, y);
+				}
+				token_length = 0;
+			}
+			break;
+
+			default: {
+				token[token_length++] = gb-&gt;data[i];
+			}
+		}
+	
+		
+	}
+
+	if (token_length &gt; 0) {
+		print_token(hdc, token, token_length, x, y);
+	}
+}
+</code></pre></div>
+<p>At first, I was just printing the entire buffer (minus the gap), but I wanted to make sure I have the ability to color different tokens as most editors do. To do that I tried to divide the string up as I went where a token was defined based on surrounding whitespace. When I added tabs I noticed that they would not print as expected. It seems <code>TextOutA</code> does not support tabbed printing, so I needed to add that as a special case which you can see in <code>print_token</code>.</p>
+<p>Once tabs were handled, I thought line endings should be next and that is where I ran into some trouble. Different systems emit different line ending characters. For example, most modern Linux and Apple devices use <code>\n</code> to signal end-of-line, Apple before OSX uses <code>\r</code> alone, and Windows has seemingly always used <code>\r\n</code>. The Windows use case is what throws a wrench in my code, since it's a 2-character signal and I am only walking 1-character at a time. I could add some special code here to look forwards or backwards an additional character in certain cases, but what I came to realize is that what I am really after is to capture an 'end of line' token.</p>
+<p>I can see that I am very slowly starting to build a lexer, or at least I am finding the use-case for one. This seems like a great time to update and revise my plan:</p>
+<ul class="contains-task-list">
+<li class="task-list-item"><input disabled="disabled" type="checkbox" checked="checked" /> Win32 Window
+<ul class="contains-task-list">
+<li class="task-list-item"><input disabled="disabled" type="checkbox" checked="checked" /> Message Loop</li>
+<li class="task-list-item"><input disabled="disabled" type="checkbox" /> <del>Back Buffer + Blit</del></li>
+<li class="task-list-item"><input disabled="disabled" type="checkbox" checked="checked" /> Simple screen painting</li>
+</ul>
+</li>
+<li class="task-list-item"><input disabled="disabled" type="checkbox" checked="checked" /> Font + Text Rendering
+<ul class="contains-task-list">
+<li class="task-list-item"><input disabled="disabled" type="checkbox" /> <del>Evaluate stb_truetype integration</del></li>
+<li class="task-list-item"><input disabled="disabled" type="checkbox" checked="checked" /> Render hardcoded text to screen</li>
+</ul>
+</li>
+<li class="task-list-item"><input disabled="disabled" type="checkbox" checked="checked" /> Typing, Cursor and Gap Buffer
+<ul class="contains-task-list">
+<li class="task-list-item"><input disabled="disabled" type="checkbox" checked="checked" /> Translate keystrokes to text</li>
+<li class="task-list-item"><input disabled="disabled" type="checkbox" checked="checked" /> Insert and delete text</li>
+<li class="task-list-item"><input disabled="disabled" type="checkbox" /> <del>Blinking cursor</del></li>
+</ul>
+</li>
+<li class="task-list-item"><input disabled="disabled" type="checkbox" /> Lexer
+<ul class="contains-task-list">
+<li class="task-list-item"><input disabled="disabled" type="checkbox" /> Handle new lines</li>
+<li class="task-list-item"><input disabled="disabled" type="checkbox" /> Support syntax highlighting</li>
+</ul>
+</li>
+<li class="task-list-item"><input disabled="disabled" type="checkbox" /> Code Navigation
+<ul class="contains-task-list">
+<li class="task-list-item"><input disabled="disabled" type="checkbox" /> Blinking cursor</li>
+<li class="task-list-item"><input disabled="disabled" type="checkbox" /> Show line numbers</li>
+<li class="task-list-item"><input disabled="disabled" type="checkbox" /> Implement ability to search for, and jump to, text</li>
+</ul>
+</li>
+<li class="task-list-item"><input disabled="disabled" type="checkbox" /> Hotkeys
+<ul class="contains-task-list">
+<li class="task-list-item"><input disabled="disabled" type="checkbox" /> Copy</li>
+<li class="task-list-item"><input disabled="disabled" type="checkbox" /> Cut</li>
+<li class="task-list-item"><input disabled="disabled" type="checkbox" /> Paste</li>
+<li class="task-list-item"><input disabled="disabled" type="checkbox" /> Support common code-related commands</li>
+</ul>
+</li>
+<li class="task-list-item"><input disabled="disabled" type="checkbox" /> File I/O
+<ul class="contains-task-list">
+<li class="task-list-item"><input disabled="disabled" type="checkbox" /> Open files on disc</li>
+<li class="task-list-item"><input disabled="disabled" type="checkbox" /> Save files to disc</li>
+</ul>
+</li>
+<li class="task-list-item"><input disabled="disabled" type="checkbox" /> Multi-pane
+<ul class="contains-task-list">
+<li class="task-list-item"><input disabled="disabled" type="checkbox" /> Support having two files open at once</li>
+<li class="task-list-item"><input disabled="disabled" type="checkbox" /> Support having the same file open twice with independent cursors</li>
+</ul>
+</li>
+<li class="task-list-item"><input disabled="disabled" type="checkbox" /> External Process
+<ul class="contains-task-list">
+<li class="task-list-item"><input disabled="disabled" type="checkbox" /> Support running a BAT from a hotkey to compile code</li>
+<li class="task-list-item"><input disabled="disabled" type="checkbox" /> Support debugger integration (jump to line)</li>
+</ul>
+</li>
+<li class="task-list-item"><input disabled="disabled" type="checkbox" /> Color Themes
+<ul class="contains-task-list">
+<li class="task-list-item"><input disabled="disabled" type="checkbox" /> Support custom colors</li>
+</ul>
+</li>
+</ul>
+</div>
+</article><article class="post" id="2025-12-03-milestone-1">
     <header>
         <center><h1 class="post-title">Milestone 1</h1></center>
         <time datetime="2025-12-03" class="post-date">December 3, 2025</time>
@@ -407,7 +689,7 @@ WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) {
             <hr />
             <ul class="toc-list">
                 <li><a href="#title">[Top]</a></li>
-                <li><a href="#2025-12-03-milestone-1">Milestone 1</a></li><li><a href="#2025-12-01-getting-started">Getting Started</a></li><li><a href="#2025-11-21-looking-back">Looking Back</a></li>
+                <li><a href="#2025-12-11-milestone-2--gap-buffers">Milestone 2 - Gap Buffers</a></li><li><a href="#2025-12-03-milestone-1">Milestone 1</a></li><li><a href="#2025-12-01-getting-started">Getting Started</a></li><li><a href="#2025-11-21-looking-back">Looking Back</a></li>
             </ul>
         </aside>
     </div>
