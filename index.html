@@ -20,7 +20,8 @@
         <time datetime="2025-12-11" class="post-date">December 11, 2025</time>
     </header>
     <hr />
-    <div class="post-content"><p>At the conclusion of Milestone 1, I could type text in a line and have it show up in the window, and could even backspace from the end of the string. Next I want to add a cursor that can move left and right with the ability to insert and delete text anywhere in the string.</p>
+    <div class="post-content"><h2 id="text-buffers">Text Buffers</h2>
+<p>At the conclusion of Milestone 1, I could type text in a line and have it show up in the window, and could even backspace from the end of the string. Next I want to add a cursor that can move left and right with the ability to insert and delete text anywhere in the string.</p>
 <p>Something that came up in my research of text editors was the concept of a <em>gap buffer</em>. A gap buffer is a segment of memory, representing a string, that is subdivided into three regions: the string that appears before cursor, a buffer of unused space, and the remainder of the string that comes after the cursor. Partitioning the memory this way allows a user to type, inserting characters at the cursor (within the gap region) without having to move memory on every keystroke.</p>
 <p>Without any references, this is the gap buffer scheme I started with to give me a predictable, fixed-size buffer:</p>
 <div class="code-wrapper"><pre><code class="language-c">// constants
@@ -159,6 +160,7 @@ case WM_CHAR: {
 }
 break;
 </code></pre></div>
+<h2 id="printing">Printing</h2>
 <p>There is, of course, a lot of room for optimizations here, but I don't think most of this code is going to end up staying around very long. This became clear as I started writing the print function for the gap buffer. Here is what I started with:</p>
 <div class="code-wrapper"><pre><code class="language-c">static i32
 print_token(HDC hdc, char* s, u64 len, i32 x, i32 y) {
@@ -228,6 +230,7 @@ gb_draw(HDC hdc, gap_buffer* gb, u64 cursor) {
 </code></pre></div>
 <p>At first, I was just printing the entire buffer (minus the gap), but I wanted to make sure I have the ability to color different tokens as most editors do. To do that I tried to divide the string up as I went where a token was defined based on surrounding whitespace. When I added tabs I noticed that they would not print as expected. It seems <code>TextOutA</code> does not support tabbed printing, so I needed to add that as a special case which you can see in <code>print_token</code>.</p>
 <p>Once tabs were handled, I thought line endings should be next and that is where I ran into some trouble. Different systems emit different line ending characters. For example, most modern Linux and Apple devices use <code>\n</code> to signal end-of-line, Apple before OSX uses <code>\r</code> alone, and Windows has seemingly always used <code>\r\n</code>. The Windows use case is what throws a wrench in my code, since it's a 2-character signal and I am only walking 1-character at a time. I could add some special code here to look forwards or backwards an additional character in certain cases, but what I came to realize is that what I am really after is to capture an 'end of line' token.</p>
+<h2 id="plan-update">Plan Update</h2>
 <p>I can see that I am very slowly starting to build a lexer, or at least I am finding the use-case for one. This seems like a great time to update and revise my plan:</p>
 <ul class="contains-task-list">
 <li class="task-list-item"><input disabled="disabled" type="checkbox" checked="checked" /> Win32 Window
