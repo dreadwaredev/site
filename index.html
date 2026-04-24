@@ -23,7 +23,7 @@
     <div class="post-content"><h2 id="windows-activation">Windows Activation</h2>
 <p>As noted in my first few posts, I am developing software on an air-gapped (read: internet-less) PC running Windows 7. I am using a legitimate copy of Windows 7 that I bought years ago with an authentic cd-key that gave me no trouble during installation. I had totally forgotten about &quot;activation&quot; and went about my business for months with no trouble, until today.</p>
 <p>When I started working I was greeted with a popup telling me that my activation period had expired and I needed to activate Windows <strong>now</strong>. Ok, sure let's do that...</p>
-<p><a href="C:%5CUsers%5CRyan%5Csource%5Crepos%5Cmarksite%5Cmarksite%5Cbin%5CDebug%5Cnet6.0%5Cimg%5C2026-04-24-01.png" target="_blank" rel="noopener noreferrer"><img src="C:%5CUsers%5CRyan%5Csource%5Crepos%5Cmarksite%5Cmarksite%5Cbin%5CDebug%5Cnet6.0%5Cimg%5C2026-04-24-01.png" alt="" //></a></p>
+<p><a href="img/2026-04-24-01.png" target="_blank" rel="noopener noreferrer"><img src="img/2026-04-24-01.png" alt="oh no" //></a></p>
 <p>It wants me to activate Windows online. I <em>can't</em> activate it online because...</p>
 <ol>
 <li>There is no wireless card in this thing</li>
@@ -31,14 +31,15 @@
 <li>Not being connected to the internet is <strong>feature</strong> of this device</li>
 </ol>
 <p>One of the options is to retype my cd-key, which seems reasonable enough, although this entire process is unreasonable. After entering my cd-key, I am greeted by a challenge screen:</p>
-<p><a href="C:%5CUsers%5CRyan%5Csource%5Crepos%5Cmarksite%5Cmarksite%5Cbin%5CDebug%5Cnet6.0%5Cimg%5C2026-04-24-02.png" target="_blank" rel="noopener noreferrer"><img src="C:%5CUsers%5CRyan%5Csource%5Crepos%5Cmarksite%5Cmarksite%5Cbin%5CDebug%5Cnet6.0%5Cimg%5C2026-04-24-02.png" alt="" //></a></p>
+<p><a href="img/2026-04-24-02.png" target="_blank" rel="noopener noreferrer"><img src="img/2026-04-24-02.png" alt="oh no again" //></a></p>
 <p>I obfuscate the numbers there, but it's a collection of 54 numbers, 6 in each of the 9 boxes. It tells me to call the automated number and enter the excruciatingly long set of numbers, presumably so it can read back <em>another</em> set of ridiculous numbers for me to enter. I think this is stupid, but I call anyway since the SMS number is &quot;not available.&quot;</p>
 <p>I am greeted by an automated system that asks me many questions about why I'm calling and what I need help with. Once it realizes that I want to activate Windows over the phone, it tells me to go to a website instead and hangs up on me. It wants me to visit <a href="aka.ms/aoh">aka.ms/aoh</a> which expands to <a href="https://visualsupport.microsoft.com/">https://visualsupport.microsoft.com/</a> apparently. I am doing this on my phone, since I need to read these numbers from my PC to get access.</p>
 <p>I am first met with a &quot;Security Verification&quot; challenge, which is a captcha. It presents a train-track with a train and 4 stops, each with a symbol. It then shows me one of the symbols flipped upside-down and tells me to use the arrows to move the train to the correct stop marked by the symbol. Once I finish this preschool matching task, I press submit and I get an error, of course.</p>
-<p><a href="C:%5CUsers%5CRyan%5Csource%5Crepos%5Cmarksite%5Cmarksite%5Cbin%5CDebug%5Cnet6.0%5Cimg%5C2026-04-24-04.png" target="_blank" rel="noopener noreferrer"><img src="C:%5CUsers%5CRyan%5Csource%5Crepos%5Cmarksite%5Cmarksite%5Cbin%5CDebug%5Cnet6.0%5Cimg%5C2026-04-24-04.png" alt="" //></a></p>
+<p><a href="img/2026-04-24-04.png" target="_blank" rel="noopener noreferrer"><img src="img/2026-04-24-04.png" alt="error" //></a></p>
 <p>Reloading the challenge is the only option, so I do it. I get the same captcha with different symbols. I solve it again and get an error again. After 3 failures, I assume it's because I am using a browser they don't expect and I try again with Safari. This time I pass the captcha on the first try. I now feel like a captcha expert, having correctly solved the train riddle 5 times in a row. My reward is another challenge screen where I finally get to enter the 54 numbers from earlier.</p>
 <p>After entering the numbers, it spits out 54 <strong>different</strong> numbers that I must enter on the PC. The whole time I am thinking to myself, &quot;the chances that I mistyped a number on my phone is pretty high, the chances that I am mistyping a number now, from the results, is also high,&quot; so I don't expect it to work.</p>
 <p>Miraculously, it does somehow work on the first try. I get a message that Windows 7 is now activated and I start coding, having wasted nearly 30 minutes of my day.</p>
+<p><a href="img/2026-04-24-03.png" target="_blank" rel="noopener noreferrer"><img src="img/2026-04-24-03.png" alt="success" //></a></p>
 <p>I am hopeful this activation sticks and does not need re-activation in the future, but I fear it's likely to come up again since I'm not using the internet. Even software from 2009 seems to think that having constant, uninterrupted internet access is a given.</p>
 </div>
 </article><article class="post" id="2026-01-14-refactor">
