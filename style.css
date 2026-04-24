@@ -1,4 +1,4 @@
-#title {
+﻿#title {
     font-family: 'Zen Dots', sans-serif;
     font-size: clamp(1.8rem, 6vw, 3rem);
     font-weight: 700;
@@ -117,12 +117,12 @@ aside.toc {
 }
 
 #posts {
-    overflow-x: auto;
+    overflow-x: hidden;
     max-width: 100%;
 }
 
 .post {
-    overflow-x: auto;
+    overflow-x: hidden;
     max-width: 100%;
 }
 
@@ -154,15 +154,16 @@ aside.toc {
 
 .post-content {
     color: #e2e8f0;
-    overflow-x: auto;
+    overflow-x: hidden;
 }
 
 .code-wrapper {
     background: #000;
     max-width: 100%;
     overflow-x: auto;
-    margin: 1rem -1.5rem;
-    padding: 0 1.5rem;
+    margin: 1rem 0;
+    padding: 0;
+    border-radius: 1px;
 }
 
 .post-content pre {

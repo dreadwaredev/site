@@ -14,7 +14,143 @@
 <body>
     <center><h1 id="title">DREADWARE</h1></center>
     <div class="grid">
-        <div id="posts"><article class="post" id="2025-12-11-milestone-2--gap-buffers">
+        <div id="posts"><article class="post" id="2026-01-14-refactor">
+    <header>
+        <center><h1 class="post-title">Refactor</h1></center>
+        <time datetime="2026-01-14" class="post-date">January 14, 2026</time>
+    </header>
+    <hr />
+    <div class="post-content"><h2 id="ergonomics">Ergonomics</h2>
+<p>As I am iterating more and needing faster feedback on my code, I have updated a few things in my <code>build.bat</code>. The biggest change is switching the default build from being <code>RELEASE</code> to <code>INTERNAL</code> (meaning debug). It seems small, but it helps. Beyond saving on typing, it means that building a release version is now done intentionally, using <code>build release</code> as the command. Building a debug version is certainly the most common case while developing, so it is now the default case.</p>
+<p>In the future, I may adapt the code to be split between <code>.exe</code> and <code>.dll</code> to allow for hot-reloading and even faster iteration, but I haven't needed it yet.</p>
+<p>Another ergonomic change I implemented was splitting out generic, common code into a header. This new header now resembles a header that I reuse often, and has the definitions of useful <code>typedefs</code>, macros, and functions that end up getting used by most of my programs. Some of these things are obvious, like my primitive type definitions:</p>
+<div class="code-wrapper"><pre><code class="language-C">// signed
+typedef char      i8;
+typedef short     i16;
+typedef int       i32;
+typedef long long i64;
+
+// unsigned
+typedef unsigned char      u8;
+typedef unsigned short     u16;
+typedef unsigned int       u32;
+typedef unsigned long long u64;
+
+// address
+typedef char* ptr;
+
+// boolean
+typedef int b32;
+
+// floating point
+typedef float  f32;
+typedef double f64;
+</code></pre></div>
+<p>But other things are more ambiguous. For instance, I am pretty sure that common memory functions should be in this header, like my <code>mem_copy</code>, but what about my <code>mem_arena</code> code? I do tend to include mem_arena in most of my code bases, but I can imagine a case where I might want a totally different memory strategy on a platform in the future. For now, I've included it in the header since it will get reused, but that might change in the future.</p>
+<h2 id="further-changes">Further Changes</h2>
+<p>As I was writing and testing my lexer, I kept running into frustration when navigating the text that I was writing for testing. After a few iterations, I got fed up and thought harder about how I handle the cursor position.</p>
+<p>Since adding new cursor code required changes throughout the code base, I took the opportunity to refactor many of the functions and win32 message handling. I won't paste the entire program here, but I wanted to note it since many function signatures have changed; some have been deleted and some have been added. Don't be surprised if you see code here that doesn't match up exactly with what was shown in previous posts.</p>
+<h2 id="a-smarter-cursor">A Smarter Cursor</h2>
+<p>My first pass at a new cursor left the editor recalculating the row and column of the cursor on each draw call. For small files this was fine, but I worried that as the gap buffer text got longer it could slow down. On top of that, since the cursor only moves when the user intervenes, there is no technical reason that I shouldn't just be keeping track of it as actions occur. I landed on adding a cursor type to the editor:</p>
+<div class="code-wrapper"><pre><code class="language-c">typedef struct {
+	u64 pos;
+	u64 row;
+	u64 col;
+	u64 col_intent;
+} de_cursor;
+</code></pre></div>
+<p>The position, called <code>pos</code> here, is the same raw offset into the text that I was keeping track of before. New items <code>row</code> and <code>col</code> are straight forward, but <code>col_intent</code> is special, representing the column on which the user <em>intended</em> the cursor to appear.</p>
+<p>If you imagine navigating a file with the arrow keys, pressing up or down should move the cursor exactly 1 row while keeping the column the same as if it was a grid. In cases where the text length of the lines differ, this presents a problem. For example, if the cursor is on a row with 120 characters and the line above has only 40 characters, we would expect the cursor to move up 1 row and then appear in the column at the end of the text of the shorter line. Then when the user presses down again, the cursor should be back to the exact spot it was in previously, which might be a different logical column.</p>
+<p>Let's take a look at the cursor movement function so I can explain how I handle it:</p>
+<div class="code-wrapper"><pre><code class="language-C">typedef enum {
+	CURSOR_LEFT,
+	CURSOR_DOWN,
+	CURSOR_UP,
+	CURSOR_RIGHT,
+} cursor_dir;
+
+static void cursor_move(de_file* f, cursor_dir dir) {
+	...
+}
+</code></pre></div>
+<p>Not that I am passing in a file, which contains a cursor <code>struct</code> as described above and the gap buffer shown on the screen. I also pass an <code>enum</code> value to represent which direction the user is moving the cursor. I do this in a function so that I don't lose track of the data I need to change at each call site. Having it all in once place reduces the chances of mistakes which reduces potential debugging risk later.</p>
+<p>The next thing I do is process the direction in a <code>case</code> statement. The left and right movement is pretty straight forward:</p>
+<div class="code-wrapper"><pre><code class="language-C">switch (dir) {
+	case CURSOR_LEFT: {
+		if (f-&gt;cursor.pos == 0) {
+			break;
+		}
+		f-&gt;cursor.pos--;
+		if (gb_get_char(f-&gt;buf, f-&gt;cursor.pos) == '\n') {
+			f-&gt;cursor.row--;
+			f-&gt;cursor.col = cursor_col_at(f-&gt;buf, f-&gt;cursor.pos);
+			}
+		else {
+			f-&gt;cursor.col--;
+		}
+		f-&gt;cursor.col_intent = f-&gt;cursor.col;
+	} break;
+        
+	case CURSOR_RIGHT: {
+		if (f-&gt;cursor.pos &gt;= len) {
+			break;
+		}
+		char c = gb_get_char(f-&gt;buf, f-&gt;cursor.pos);
+ 		f-&gt;cursor.pos++;
+		if (c == '\n') {
+			f-&gt;cursor.row++;
+			f-&gt;cursor.col = 0;
+			}
+			else {
+				f-&gt;cursor.col++;
+			}
+			f-&gt;cursor.col_intent = f-&gt;cursor.col;
+	} break;
+            
+</code></pre></div>
+<p>I increment and decrement the position as I did before, but now I handle a case when the user presses left while at the start of a row, or presses right while at the end of a row. In those cases, I expect to hit a carriage return and then increment or decrement the row of the cursor and snap the column to the start or end of the line.</p>
+<p>This cursor behavior is typical and is part of editors like notepad and Visual Studio. I might change this in the future since I'm not sure I like that behavior, even though it is familiar. I prefer that pressing left at the start of the line, or right at the end of the line, simply keeps the cursor in it's current position. If I want to make it configurable it might be a little extra effort, but for now I'll keep the feature set as close to notepad as I can.</p>
+<p>Let's take a look at the up and down cases next, since <code>col_intent</code> will come into play:</p>
+<div class="code-wrapper"><pre><code class="language-C">case CURSOR_UP: {
+	if (f-&gt;cursor.row == 0) {
+		break;
+	}
+	u64 start = cursor_line_start(f-&gt;buf, f-&gt;cursor.pos);
+	u64 prev_line_end = start - 1;
+	u64 prev_line_start = cursor_line_start(f-&gt;buf, prev_line_end);
+	u64 prev_line_len   = (prev_line_end - prev_line_start);
+
+	u64 target_col = f-&gt;cursor.col_intent &lt; prev_line_len
+		? f-&gt;cursor.col_intent
+		: prev_line_len;
+
+	f-&gt;cursor.pos = prev_line_start + target_col;
+	f-&gt;cursor.row--;
+	f-&gt;cursor.col = target_col;
+} break;
+
+case CURSOR_DOWN: {
+	u64 line_end = cursor_line_end(f-&gt;buf, f-&gt;cursor.pos);
+	if (line_end &gt;= len) {
+		break;
+	}
+	u64 next_line_start = line_end + 1;
+	u64 next_line_len   = cursor_line_len(f-&gt;buf, next_line_start);
+    
+	u64 target_col = f-&gt;cursor.col_intent &lt; next_line_len
+		? f-&gt;cursor.col_intent
+		: next_line_len;
+
+	f-&gt;cursor.pos = next_line_start + target_col;
+	f-&gt;cursor.row++;
+	f-&gt;cursor.col = target_col;
+} break;
+</code></pre></div>
+<p>Looking at <code>CURSOR_UP</code>, the first thing I do is check that we aren't at the top of the file already, then I start looking at the line endings. I find the <code>'\n'</code> that should end the line above, then measure the start and end offsets of that line of text. I do this so that when I move the cursor up it doesn't move directly on a grid but instead takes the text length of the line into account. The column to move to is represented as <code>target_col</code> and that is where I take the column intent into consideration. Essentially, if the intended column exists in the row above, I just move up 1 row and I'm done. However, if there is less text on the line above, I want to snap to the end of that line. I keep track of the intended column though, so that if the user presses down I go back to the column the cursor previously visited. That is how notepad works and it's what users tend to expect; pressing up and then down should leave the cursor back in the position it was in before, as if we performed an undo. If I didn't keep track of that intent, pressing down would still move the cursor down, but to a different column than we originated which would feel weird. The user doesn't expect horizontal cursor movement from an up or down arrow press.</p>
+<h2 id="next-steps">Next Steps</h2>
+<p>Since the cursor now lets me navigate the code in all directions, I feel more comfortable continuing with the lexer. I will keep the plan the same and update the next milestone once I am happy with how it works.</p>
+</div>
+</article><article class="post" id="2025-12-11-milestone-2--gap-buffers">
     <header>
         <center><h1 class="post-title">Milestone 2 - Gap Buffers</h1></center>
         <time datetime="2025-12-11" class="post-date">December 11, 2025</time>
@@ -692,7 +828,7 @@ WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) {
             <hr />
             <ul class="toc-list">
                 <li><a href="#title">[Top]</a></li>
-                <li><a href="#2025-12-11-milestone-2--gap-buffers">Milestone 2 - Gap Buffers</a></li><li><a href="#2025-12-03-milestone-1">Milestone 1</a></li><li><a href="#2025-12-01-getting-started">Getting Started</a></li><li><a href="#2025-11-21-looking-back">Looking Back</a></li>
+                <li><a href="#2026-01-14-refactor">Refactor</a></li><li><a href="#2025-12-11-milestone-2--gap-buffers">Milestone 2 - Gap Buffers</a></li><li><a href="#2025-12-03-milestone-1">Milestone 1</a></li><li><a href="#2025-12-01-getting-started">Getting Started</a></li><li><a href="#2025-11-21-looking-back">Looking Back</a></li>
             </ul>
         </aside>
     </div>
