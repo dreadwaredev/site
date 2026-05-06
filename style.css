@@ -1,6 +1,7 @@
 ﻿@font-face {
     font-family: 'Zen Dots';
-    src: url('fonts/ZenDots-Regular.woff2') format('woff2');
+    src: url('fonts/ZenDots-Regular.woff2') format('woff2'),
+         url('fonts/ZenDots-Regular.ttf')   format('truetype');
     font-weight: normal;
     font-style: normal;
     font-display: swap;
