@@ -1,4 +1,12 @@
-﻿#title {
+﻿@font-face {
+    font-family: 'Zen Dots';
+    src: url('fonts/ZenDots-Regular.woff2') format('woff2');
+    font-weight: normal;
+    font-style: normal;
+    font-display: swap;
+}
+
+#title {
     font-family: 'Zen Dots', sans-serif;
     font-size: clamp(1.8rem, 6vw, 3rem);
     font-weight: 700;
