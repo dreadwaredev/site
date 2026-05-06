@@ -10,7 +10,37 @@
 <body>
     <center><h1 id="title">DREADWARE</h1></center>
     <div class="grid">
-        <div id="posts"><article class="post" id="2026-04-24-microsoft-strikes-again">
+        <div id="posts"><article class="post" id="2026-05-06-google-fonts">
+    <header>
+        <center><h1 class="post-title">Google Fonts</h1></center>
+        <time datetime="2026-05-06" class="post-date">May 6, 2026</time>
+    </header>
+    <hr />
+    <div class="post-content"><h2 id="simplicity-first">Simplicity First</h2>
+<p>I <strong>strongly</strong> believe that the modern web is a needlessly complex and wasteful mess that has drastically reduced software dependability. I abhor loading screens and scroll-stutter on webpages while using a computer that can run Cyberpunk 2077 4k@60fps. When I first started to draft this blog, I adopted the exceptionally minimal style I've seen on <a href="https://grugbrain.dev/">other</a> <a href="http://number-none.com/blow/">blogs</a> and <a href="https://www.orionsoft.games/">sites</a> that <a href="https://justinjackson.ca/words.html">I admire</a>. However, the simplicity of that style appeals to a small niche (mostly), and I want this blog to be more welcoming to those that are used to the modern web.</p>
+<p>In order to find middle ground, I write all of my posts in markdown, run it through a custom converter, and spit out a single HTML file with a single style sheet. My hope is that the absence of scripts and external dependencies help keep things simple and fast while still maintaining a modern-enough feel for a casual, modern user.</p>
+<p>That said, I did have an external dependency and I just recently eliminated it: a reference to fonts.googleapis.com used to source the font for the DREADWARE logo. The font that I use is one that is not typically on a user's machine by default, and I didn't want to use a large, dynamic image for something as simple as text. A commonly accepted solution to this is to request the font from somewhere, which I did in the HTML <head> like this:</p>
+<div class="code-wrapper"><pre><code class="language-html"> &lt;link rel=&quot;preconnect&quot; href=&quot;https://fonts.googleapis.com&quot;&gt;
+ &lt;link rel=&quot;preconnect&quot; href=&quot;https://fonts.gstatic.com&quot; crossorigin&gt;
+ &lt;link href=&quot;https://fonts.googleapis.com/css2?family=Zen+Dots&amp;display=swap&quot;
+          rel=&quot;stylesheet&quot;&gt;
+</code></pre></div>
+<p>This worked and was convenient so I added it and forgot about it.</p>
+<h2 id="tracking">Tracking</h2>
+<p>I am well aware of Google's reputation for tracking, and I assumed that Google would be garnering some sort of analytics from the font requests, but I was reading <a href="https://security.stackexchange.com/questions/151321/is-it-dangerous-to-allow-customers-to-refer-to-fonts-googleapis-com-in-their-scr">some</a> <a href="https://privacychecker.pro/blog/google-fonts-gdpr-compliant">stuff</a> recently that gave me pause. Being a non-expert in modern web development, I did not consider that retrieving the font could possibly result in script execution. While external script execution should not <em>theoretically</em> be possible by calling the fonts API within a <link> tag, Google is very clever and I assume they are able to do pretty much whatever they want by cobbling together data from several sources and exploiting loopholes.</p>
+<p>Since all I am doing is downloading a font, the font has a <a href="https://fonts.google.com/specimen/Zen+Dots/license?preview.script=Latn">fairly permissive license</a>, and I want to remove every external dependency that I possibly can, I changed the source of the font to be locally hosted. I now upload the font directly and reference it in the style sheet as follows:</p>
+<div class="code-wrapper"><pre><code class="language-css">@font-face {
+    font-family: 'Zen Dots';
+    src: url('fonts/ZenDots-Regular.woff2') format('woff2'),
+         url('fonts/ZenDots-Regular.ttf')   format('truetype');
+    font-weight: normal;
+    font-style: normal;
+    font-display: swap;
+}
+</code></pre></div>
+<p>Beyond eliminating the Google tracking and risk of external script execution, this has the added benefit of referencing a woff2 formatted font which is more compact than a truetype font, making the blog theoretically faster to load than before. I fallback to the truetype version if the user has a browser that doesn't support woff2.</p>
+</div>
+</article><article class="post" id="2026-04-24-microsoft-strikes-again">
     <header>
         <center><h1 class="post-title">Microsoft Strikes Again</h1></center>
         <time datetime="2026-04-24" class="post-date">April 24, 2026</time>
@@ -852,7 +882,7 @@ WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) {
             <hr />
             <ul class="toc-list">
                 <li><a href="#title">[Top]</a></li>
-                <li><a href="#2026-04-24-microsoft-strikes-again">Microsoft Strikes Again</a></li><li><a href="#2026-01-14-refactor">Refactor</a></li><li><a href="#2025-12-11-milestone-2--gap-buffers">Milestone 2 - Gap Buffers</a></li><li><a href="#2025-12-03-milestone-1">Milestone 1</a></li><li><a href="#2025-12-01-getting-started">Getting Started</a></li><li><a href="#2025-11-21-looking-back">Looking Back</a></li>
+                <li><a href="#2026-05-06-google-fonts">Google Fonts</a></li><li><a href="#2026-04-24-microsoft-strikes-again">Microsoft Strikes Again</a></li><li><a href="#2026-01-14-refactor">Refactor</a></li><li><a href="#2025-12-11-milestone-2--gap-buffers">Milestone 2 - Gap Buffers</a></li><li><a href="#2025-12-03-milestone-1">Milestone 1</a></li><li><a href="#2025-12-01-getting-started">Getting Started</a></li><li><a href="#2025-11-21-looking-back">Looking Back</a></li>
             </ul>
         </aside>
     </div>
