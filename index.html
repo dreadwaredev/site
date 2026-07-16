@@ -24,7 +24,7 @@ additional character in certain cases, but what I came to realize is that
 what I am really after is to capture an 'end of line' token.</p>
 </blockquote>
 <p>It turns out I was wrong about what the lexer was for, but it took me some time to discover that. At first, I added an <code>EOL</code> token type, taught the lexer to recognize all three flavors of line ending, and emitted a single clean token for each one. It worked! Printing got simpler! I felt clever for about a day, but then I tried to use it.</p>
-<h2 id="what-i-was-actually-asking">What I Was Actually Asking</h2>
+<h2 id="what-i-was-asking">What I Was Asking</h2>
 <p>The questions I needed answered, over and over, were not variations of <em>&quot;what token is this?&quot;</em> They were:</p>
 <ul>
 <li>What row is the cursor on?</li>
