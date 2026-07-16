@@ -10,7 +10,263 @@
 <body>
     <center><h1 id="title">DREADWARE</h1></center>
     <div class="grid">
-        <div id="posts"><article class="post" id="2026-05-06-google-fonts">
+        <div id="posts"><article class="post" id="2026-07-16-milestone-3-the-lexer">
+    <header>
+        <center><h1 class="post-title">Milestone 3 - The Lexer</h1></center>
+        <time datetime="2026-07-16" class="post-date">July 16, 2026</time>
+    </header>
+    <hr />
+    <div class="post-content"><h2 id="the-wrong-answer">The Wrong Answer</h2>
+<p>I ended Milestone 2 stuck on line endings. Linux and modern Apple machines emit <code>\n</code>, pre-OSX Apple emits <code>\r</code>, and Windows emits <code>\r\n</code>. My printing code walked the buffer one character at a time, so the two-character Windows signal didn't fit. I wrote this at the time:</p>
+<blockquote>
+<p>I could add some special code here to look forwards or backwards an
+additional character in certain cases, but what I came to realize is that
+what I am really after is to capture an 'end of line' token.</p>
+</blockquote>
+<p>It turns out I was wrong about what the lexer was for, but it took me some time to discover that. At first, I added an <code>EOL</code> token type, taught the lexer to recognize all three flavors of line ending, and emitted a single clean token for each one. It worked! Printing got simpler! I felt clever for about a day, but then I tried to use it.</p>
+<h2 id="what-i-was-actually-asking">What I Was Actually Asking</h2>
+<p>The questions I needed answered, over and over, were not variations of <em>&quot;what token is this?&quot;</em> They were:</p>
+<ul>
+<li>What row is the cursor on?</li>
+<li>Where does row 40 start?</li>
+<li>How many rows are in this file?</li>
+<li>What text is on the row above the cursor?</li>
+</ul>
+<p>Every one of those questions is a question about <em>lines</em>, and I was asking a lexer, which only knows about <em>syntax</em>. I had one pile of code trying to do two jobs and it was bad at both.</p>
+<p>The realization was that these are separate problems that happen to both involve the <code>\n</code> character:</p>
+<ul>
+<li>Where are the lines? That is a structural question about the file. It has nothing to do with C.</li>
+<li>What color is this text? That is a syntax question. It has nothing to do with lines.</li>
+</ul>
+<p>So I split them. A line table answers the first question and the lexer answers the second. The funny part is that once I split them, the <code>\r\n</code> problem I'd been stuck on for a month simply evaporated.</p>
+<h2 id="the-line-table">The Line Table</h2>
+<p>The line table is the least clever data structure I have ever been happy about. It is a sorted array of the offset of every <code>\n</code> in the buffer:</p>
+<div class="code-wrapper"><pre><code class="language-c">#define MAX_LINES 65536
+typedef struct {
+    gap_buffer gb;
+    de_cursor  cursor;
+    u32 lines[MAX_LINES];  // logical offset of each '\n', ascending
+    u32 line_count;
+} de_file;
+</code></pre></div>
+<p>That's it. <code>lines[0]</code> is the byte offset to where the first newline lives, <code>lines[1]</code> the second, and so on. <code>line_count</code> newlines means <code>line_count + 1</code> rows.</p>
+<p>It's fixed-size just like the gap buffer: 65536 lines, 4 bytes each, 256KB per file, and I refuse to open any file bigger. That's a real limit and it might eventually annoy me, but I'd rather ship the annoying version and find out than design a block allocator for a problem I haven't had yet. I actually had started writing a block allocator before backtracking and deciding I was going down a rabbit hole.</p>
+<p>Note that the offsets are <code>u32</code> while the cursor is <code>u64</code>. That is a deliberate mismatch: a 2MB buffer cannot have an offset that doesn't fit in a <code>u32</code>, so paying 8 bytes per line would double the table for nothing.</p>
+<p>The whole reason the table earns its keep is this function:</p>
+<div class="code-wrapper"><pre><code class="language-c">static inline u32
+lines_lower_bound(u32* lines, u32 count, u32 pos) {
+    u32 lo = 0
+    u32 hi = count;
+    while (lo &lt; hi) {
+        u32 mid = (lo + hi) &gt;&gt; 1;
+        if (lines[mid] &lt; pos) {
+            lo = mid + 1;
+        }
+        else {
+            hi = mid;
+        }
+    }
+    return lo;
+}
+</code></pre></div>
+<p>The array is sorted because newlines occur in order, which means I never have to sort it, which means the sorted-ness is free and I can use a binary search. The max number of entries I have to look at to find the cursor's row in a 65536-line file is 16.</p>
+<p>The index of the first newline at (or after) a position is also the count of newlines before that position, which is also the row number. The row number and the search result are the same integer. I did not design that; it's just true and I get to use it:</p>
+<div class="code-wrapper"><pre><code class="language-c">static u64
+line_start_of(de_file* f, u64 pos) {
+    u32 row = lines_lower_bound(f-&gt;lines, f-&gt;line_count, (u32)pos);
+    return (row &gt; 0)
+        ? (u64)f-&gt;lines[row - 1] + 1
+        : 0;
+}
+
+static u64
+line_end_of(de_file* f, u64 pos) {
+    u32 row = lines_lower_bound(f-&gt;lines, f-&gt;line_count, (u32)pos);
+    return (row &lt; f-&gt;line_count)
+        ? (u64)f-&gt;lines[row]
+        : gb_text_length(&amp;f-&gt;gb);
+}
+</code></pre></div>
+<p>A row starts one byte after the previous row's newline, or at 0 if it's the first row. A row ends at its own newline, or at end-of-file if it's the last row. Both of them are a binary search and an array read.</p>
+<h2 id="killing-the-backward-scan">Killing the Backward Scan</h2>
+<p>In the past, my cursor code called <code>cursor_line_start</code>, which found the start of a line by walking backwards through the buffer looking for a <code>\n</code>. I even called out my discomfort about recalculating row and column on each draw in a post:</p>
+<blockquote>
+<p>For small files this was fine, but I worried that as the gap buffer text got longer it could slow down.</p>
+</blockquote>
+<p>It turns out that worry was correct. Walking backwards from the cursor is O(n) in the length of the line, which is fine, but <code>CURSOR_UP</code> did it three times and any code that wanted an arbitrary row had to scan from the top of the file. On a long file, holding down the up arrow meant rescanning text I had already scanned thousands of times a second to rediscover something it already knew.</p>
+<p><code>CURSOR_UP</code> is now this:</p>
+<div class="code-wrapper"><pre><code class="language-c">case CURSOR_UP: {
+    u32 row = lines_lower_bound(f-&gt;lines, f-&gt;line_count, (u32)f-&gt;cursor.pos);
+    if (row == 0) {
+        break;
+    }
+    u64 prev_start = row_start(f, row - 1);
+    u64 prev_len   = f-&gt;lines[row - 1] - prev_start;
+    u64 target_col = f-&gt;cursor.col_intent &lt; prev_len
+        ? f-&gt;cursor.col_intent
+        : prev_len;
+    f-&gt;cursor.pos = prev_start + target_col;
+    f-&gt;cursor.row = row - 1;
+    f-&gt;cursor.col = target_col;
+} break;
+</code></pre></div>
+<p><code>col_intent</code> works exactly as it did before. The only thing that changed is that finding the previous line is now an array lookup instead of a byte hunt.</p>
+<p>There is also a second, better payoff. I previously tracked <code>row</code> and <code>col</code> on the cursor struct incrementally, adjusting them by hand in every direction case because recomputing them was too expensive. That is a cache, and like every cache it was a bug waiting to happen; every new edit operation I write has to remember to fix up <code>row</code> and <code>col</code>, and if I forget one, the cursor silently disagrees with the text. With the table, recomputing the row is cheap, so the cached fields lose most of their value. I've kept them for now because the drawing code reads them constantly, but they're now an optimization I could delete rather than a fact I have to maintain. That's a much better place to be.</p>
+<p>The cost, of course, is that the table has to be right. Every insert or delete of a <code>\n</code> has to update it, and every edit at all has to shift the offsets after it. I have that working, but I don't love the code yet, so I'm going to leave it for its own post once I've lived with it.</p>
+<h2 id="the-lexer">The Lexer</h2>
+<p>With lines handled elsewhere, the lexer got to be small and single-minded.</p>
+<p>The token types:</p>
+<div class="code-wrapper"><pre><code class="language-c">typedef enum {
+    TOKEN_DEFAULT,
+    TOKEN_KEYWORD,
+    TOKEN_TYPE,
+    TOKEN_IDENTIFIER,
+    TOKEN_NUMBER,
+    TOKEN_STRING,
+    TOKEN_CHAR_LIT,
+    TOKEN_COMMENT,
+    TOKEN_PREPROCESSOR,
+    TOKEN_PUNCTUATION,
+    TOKEN_OPERATOR,
+} token_type;
+
+typedef struct {
+    token_type type;
+    u64        start;
+    u64        end;
+} de_token;
+</code></pre></div>
+<p>There is no <code>TOKEN_EOL</code>. There is no <code>TOKEN_WHITESPACE</code> either. A token is a type and a pair of offsets into the buffer. It does not own any characters because the characters are already sitting in the gap buffer and copying them somewhere else would be silly.</p>
+<p>Here is the top of the loop, and it is where the whole <code>\r\n</code> saga ends:</p>
+<div class="code-wrapper"><pre><code class="language-c">u64 i = start_pos;
+while (i &lt; end_pos &amp;&amp; count &lt; max_tokens) {
+    u8 c = gb_get_char(&amp;f-&gt;gb, i);
+    if (c == '\r' || c == ' ' || c == '\t') {
+        i++;
+        continue;
+    }
+    if (c == '\n') {
+        in_preprocessor = 0;
+        i++;
+        continue;
+    }
+    // ...
+</code></pre></div>
+<p><strong>That's</strong> the answer to the question I asked in Milestone 2. <code>\r</code> is skipped, <code>\n</code> is skipped, and neither produces a token. I spent real time worrying about how to represent a two-character line ending as one token and the resolution was that the lexer does not need to represent line endings at all. Whether the file says <code>\n</code> or <code>\r\n</code> or <code>\r</code>, the lexer skips the bytes and keeps going, and the answer is identical. The line table doesn't care either: it records the offset of the <code>\n</code>, and a <code>\r</code> sitting in front of it is just a character on the end of the line that happens to be invisible.</p>
+<p>The only thing <code>\n</code> does in the lexer is clear a <code>in_preprocessor</code> flag because <code>#define</code> ends at the end of a line. The rest of the loop is what you'd expect: recognize a thing, emit a span, continue.</p>
+<div class="code-wrapper"><pre><code class="language-c">if (c == '/' &amp;&amp; i + 1 &lt; len &amp;&amp; gb_get_char(&amp;f-&gt;gb, i + 1) == '/') {
+    u64 start = i;
+    while (i &lt; len &amp;&amp; gb_get_char(&amp;f-&gt;gb, i) != '\n') {
+        i++;
+    }
+    out[count].type  = TOKEN_COMMENT;
+    out[count].start = start;
+    out[count].end   = i;
+    count++;
+    continue;
+}
+
+if (c == '&quot;') {
+    u64 start = i++;
+    while (i &lt; len) {
+        u8 sc = gb_get_char(&amp;f-&gt;gb, i);
+        if (sc == '\\') {
+            i += 2;
+            continue;
+        }
+        if (sc == '&quot;' || sc == '\n') {
+            i++;
+            break;
+        }
+        i++;
+    }
+    out[count].type  = TOKEN_STRING;
+    out[count].start = start;
+    out[count].end   = i;
+    count++;
+    continue;
+}
+</code></pre></div>
+<p>Two notes on the string case:</p>
+<ul>
+<li>The backslash skips two characters so that <code>&quot;he said \&quot;hi\&quot;&quot;</code> doesn't terminate early.</li>
+<li>An unterminated string stops at the newline instead of running to the end of the file, because while I'm typing, <em>every</em> string is unterminated for a moment, and I don't want the rest of the file to flash red every time I type a quote.</li>
+</ul>
+<p>Identifiers are the only place the lexer knows what language it's reading:</p>
+<div class="code-wrapper"><pre><code class="language-c">if (is_ident_start(c)) {
+    u64 start = i;
+    while (i &lt; len &amp;&amp; is_ident_char(gb_get_char(&amp;f-&gt;gb, i))) {
+        i++;
+    }
+    token_type type = TOKEN_IDENTIFIER;
+    if (in_preprocessor) {
+        type = TOKEN_PREPROCESSOR;
+    }
+    else if (word_list_contains(&amp;keywords, word, word_len)) {
+        type = TOKEN\_KEYWORD;
+    }
+    else if (word_list_contains(&amp;types, word, word_len)) {
+        type = TOKEN_TYPE;
+    }
+    // ...
+</code></pre></div>
+<p>Scan the whole word then look it up. Keywords and types are just two lists of strings, which means C isn't compiled into the lexer and I can add another language later by adding another list. That is deliberate and it is as far as I'm taking it for now.</p>
+<p>Note also that the function takes a <code>start_pos</code> and an <code>end_pos</code> rather than tokenizing the file. I only ever need colors for the rows that are on screen, and there is no reason to lex 60,000 lines to draw 50 of them. The line table is what makes that possible! Given a row, I know its byte range, so I can lex exactly the range I'm about to draw.</p>
+<h2 id="the-one-hard-part">The One Hard Part</h2>
+<p>Lexing an arbitrary range has a catch, and I want to be honest that I have not fully solved it.</p>
+<p>To lex from the middle of a file, you need to know what was already happening at that point. More specifically we need to know <em>&quot;are we inside a block comment?&quot;</em> The raw bytes cannot tell you because the <code>/*</code> might be 400 lines above the viewport. If you guess wrong, an entire screen of code renders as a comment, or an entire comment renders as code.</p>
+<p>My current answer is to store one byte of lexer state per line, alongside the line table, where bit 0 means &quot;this line starts inside a block comment&quot;:</p>
+<div class="code-wrapper"><pre><code class="language-c">u8 line_states[MAX_LINES];
+</code></pre></div>
+<p>To lex a range, I look up the state at the first line and start there:</p>
+<div class="code-wrapper"><pre><code class="language-c">u32 start_line = lines_lower_bound(f-&gt;lines, f-&gt;line_count, (u32)start_pos);
+u8  state      = f-&gt;line_states[start_line];
+if (state) {
+    u64 start = i;
+    while (i + 1 &lt; len) {
+        if (gb_get_char(&amp;f-&gt;gb, i) == '*' &amp;&amp; gb_get_char(&amp;f-&gt;gb, i + 1) == '/') {
+            i += 2;
+            state = 0;
+            break;
+        }
+        i++;
+    }
+    // ...
+</code></pre></div>
+<p>This works and it's fast. Keeping that array <em>correct</em> as the file gets edited is a different story, and it has already produced the most interesting bug I've hit on this project so far. I'm going to save that for a future post, because it deserves one.</p>
+<h2 id="drawing">Drawing</h2>
+<p><code>print_token</code> from Milestone 2 barely changed. It had a <code>TODO</code> on it asking for exactly this:</p>
+<div class="code-wrapper"><pre><code class="language-c">// TODO: determine token type and select colors
+</code></pre></div>
+<p>Now the token type arrives as an argument, and the color is a table lookup:</p>
+<div class="code-wrapper"><pre><code class="language-c">static COLORREF
+token_color(token_type type) {
+    switch (type) {
+        case TOKEN_KEYWORD:      return COLOR_KEYWORD;
+        case TOKEN_TYPE:         return COLOR_TYPE;
+        case TOKEN_NUMBER:       return COLOR_NUMBER;
+        case TOKEN_STRING:       return COLOR_STRING;
+        case TOKEN_CHAR_LIT:     return COLOR_CHAR_LIT;
+        case TOKEN_COMMENT:      return COLOR_COMMENT;
+        case TOKEN_PREPROCESSOR: return COLOR_PREPROCESSOR;
+        case TOKEN_PUNCTUATION:  return COLOR_PUNCTUATION;
+        case TOKEN_OPERATOR:     return COLOR_OPERATOR;
+        case TOKEN_IDENTIFIER:
+        case TOKEN_DEFAULT:
+        default:                 return COLOR_TEXT;
+    }
+}
+</code></pre></div>
+<p>Those are <code>#define</code>s pointing at <code>RGB()</code> values for now. Making them loadable from a file is the Color Themes item, and it can wait. I use internal defaults for now.</p>
+<p>The draw loop no longer walks the buffer at all. It asks the line table which rows are visible, asks the lexer for the tokens in that byte range, then draws them. Since the tokens are byte spans and whitespace isn't a token, the gaps between tokens are exactly the whitespace, so I advance x by the width of the gap and don't draw anything there.</p>
+<p>I also finally get line numbers, which was sitting under Code Navigation on the plan. <code>line_count</code> is a field. The row of the top of the viewport is a binary search. Line numbers are a for loop and a counter. It took about ten minutes, and it took ten minutes because of the table, not in spite of it.</p>
+<h2 id="what-i-learned">What I Learned</h2>
+<p>I spent a month stuck on <code>\r\n</code> and the fix was simply to notice that I had pointed the question at the wrong system. The lexer was never the thing that cared about lines. Once the line table existed, the lexer got to skip those bytes entirely, and a problem I had been circling turned out not to be a problem at all.</p>
+<p>I don't think I could have seen that from the outside. I had to build the <code>EOL</code> token, use it, and find it useless. That's the second time on this project that writing the usage code taught me the design, and I suspect it won't be the last.</p>
+<h2 id="plan-update">Plan Update</h2>
+<p>Next up is File I/O, and I'm moving it ahead of the rest of Code Navigation on purpose. I am still writing this editor in notepad, and the original milestone I set for myself was feature parity with notepad. Searching and jumping can wait. Being able to open and save a file is the thing standing between me and using this thing to write itself.</p>
+</div>
+</article><article class="post" id="2026-05-06-google-fonts">
     <header>
         <center><h1 class="post-title">Google Fonts</h1></center>
         <time datetime="2026-05-06" class="post-date">May 6, 2026</time>
@@ -204,7 +460,7 @@ case CURSOR_DOWN: {
 <h2 id="next-steps">Next Steps</h2>
 <p>Since the cursor now lets me navigate the code in all directions, I feel more comfortable continuing with the lexer. I will keep the plan the same and update the next milestone once I am happy with how it works.</p>
 </div>
-</article><article class="post" id="2025-12-11-milestone-2--gap-buffers">
+</article><article class="post" id="2025-12-11-milestone-2-gap-buffers">
     <header>
         <center><h1 class="post-title">Milestone 2 - Gap Buffers</h1></center>
         <time datetime="2025-12-11" class="post-date">December 11, 2025</time>
@@ -882,7 +1138,7 @@ WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) {
             <hr />
             <ul class="toc-list">
                 <li><a href="#title">[Top]</a></li>
-                <li><a href="#2026-05-06-google-fonts">Google Fonts</a></li><li><a href="#2026-04-24-microsoft-strikes-again">Microsoft Strikes Again</a></li><li><a href="#2026-01-14-refactor">Refactor</a></li><li><a href="#2025-12-11-milestone-2--gap-buffers">Milestone 2 - Gap Buffers</a></li><li><a href="#2025-12-03-milestone-1">Milestone 1</a></li><li><a href="#2025-12-01-getting-started">Getting Started</a></li><li><a href="#2025-11-21-looking-back">Looking Back</a></li>
+                <li><a href="#2026-07-16-milestone-3-the-lexer">Milestone 3 - The Lexer</a></li><li><a href="#2026-05-06-google-fonts">Google Fonts</a></li><li><a href="#2026-04-24-microsoft-strikes-again">Microsoft Strikes Again</a></li><li><a href="#2026-01-14-refactor">Refactor</a></li><li><a href="#2025-12-11-milestone-2-gap-buffers">Milestone 2 - Gap Buffers</a></li><li><a href="#2025-12-03-milestone-1">Milestone 1</a></li><li><a href="#2025-12-01-getting-started">Getting Started</a></li><li><a href="#2025-11-21-looking-back">Looking Back</a></li>
             </ul>
         </aside>
     </div>
