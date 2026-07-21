@@ -212,7 +212,7 @@ if (c == '&quot;') {
 </code></pre></div>
 <p>Scan the whole word then look it up. Keywords and types are just two lists of strings, which means C isn't compiled into the lexer and I can add another language later by adding another list. That is deliberate and it is as far as I'm taking it for now.</p>
 <p>Note also that the function takes a <code>start_pos</code> and an <code>end_pos</code> rather than tokenizing the file. I only ever need colors for the rows that are on screen, and there is no reason to lex 60,000 lines to draw 50 of them. The line table is what makes that possible! Given a row, I know its byte range, so I can lex exactly the range I'm about to draw.</p>
-<h2 id="the-one-hard-part">The One Hard Part</h2>
+<h2 id="the-hard-part">The Hard Part</h2>
 <p>Lexing an arbitrary range has a catch, and I want to be honest that I have not fully solved it.</p>
 <p>To lex from the middle of a file, you need to know what was already happening at that point. More specifically we need to know <em>&quot;are we inside a block comment?&quot;</em> The raw bytes cannot tell you because the <code>/*</code> might be 400 lines above the viewport. If you guess wrong, an entire screen of code renders as a comment, or an entire comment renders as code.</p>
 <p>My current answer is to store one byte of lexer state per line, alongside the line table, where bit 0 means &quot;this line starts inside a block comment&quot;:</p>
@@ -260,9 +260,6 @@ token_color(token_type type) {
 <p>Those are <code>#define</code>s pointing at <code>RGB()</code> values for now. Making them loadable from a file is the Color Themes item, and it can wait. I use internal defaults for now.</p>
 <p>The draw loop no longer walks the buffer at all. It asks the line table which rows are visible, asks the lexer for the tokens in that byte range, then draws them. Since the tokens are byte spans and whitespace isn't a token, the gaps between tokens are exactly the whitespace, so I advance x by the width of the gap and don't draw anything there.</p>
 <p>I also finally get line numbers, which was sitting under Code Navigation on the plan. <code>line_count</code> is a field. The row of the top of the viewport is a binary search. Line numbers are a for loop and a counter. It took about ten minutes, and it took ten minutes because of the table, not in spite of it.</p>
-<h2 id="what-i-learned">What I Learned</h2>
-<p>I spent a month stuck on <code>\r\n</code> and the fix was simply to notice that I had pointed the question at the wrong system. The lexer was never the thing that cared about lines. Once the line table existed, the lexer got to skip those bytes entirely, and a problem I had been circling turned out not to be a problem at all.</p>
-<p>I don't think I could have seen that from the outside. I had to build the <code>EOL</code> token, use it, and find it useless. That's the second time on this project that writing the usage code taught me the design, and I suspect it won't be the last.</p>
 <h2 id="plan-update">Plan Update</h2>
 <p>Next up is File I/O, and I'm moving it ahead of the rest of Code Navigation on purpose. I am still writing this editor in notepad, and the original milestone I set for myself was feature parity with notepad. Searching and jumping can wait. Being able to open and save a file is the thing standing between me and using this thing to write itself.</p>
 </div>
