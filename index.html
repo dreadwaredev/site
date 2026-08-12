@@ -10,7 +10,50 @@
 <body>
     <center><h1 id="title">DREADWARE</h1></center>
     <div class="grid">
-        <div id="posts"><article class="post" id="2026-07-16-milestone-3-the-lexer">
+        <div id="posts"><article class="post" id="2026-08-12-zero-one-many">
+    <header>
+        <center><h1 class="post-title">Zero One Many</h1></center>
+        <time datetime="2026-08-12" class="post-date">August 12, 2026</time>
+    </header>
+    <hr />
+    <div class="post-content"><h1 id="zero-one-many">Zero, One, Many</h1>
+<blockquote>
+<p>Understand text deeply, recognize structure cautiously, and never pretend to understand semantics.</p>
+</blockquote>
+<p>That's become something like a mantra for this part of the project. Everything below is what it took to actually earn it.</p>
+<h2 id="the-spec">The Spec</h2>
+<p>Go to Definition was supposed to be simple. Find the function, jump to it. I started writing down what &quot;find the function&quot; actually had to mean, and the list didn't stop where I expected.</p>
+<p>A name typed at the cursor could be a local variable, a parameter, a for-loop declaration, an enum member, or the name in an ordinary field or global. I had to tell a real declaration apart from a call expression that merely looks like one, because <code>make_widget();</code> and <code>Widget w = make_widget();</code> are not the same thing and a naive scanner treats them alike. And once a function has more than one local candidate sharing a name, something has to decide which one wins, so I sketched a ranking rule: walk backward from the cursor first, then forward, and take whichever match is closest.</p>
+<p>Every one of those pieces was reasonable on its own. I kept adding them anyway, one defensible case at a time, until I looked at what I'd actually specified.</p>
+<h2 id="what-i-wrote-down">What I Wrote Down</h2>
+<p>Here's the sentence I wrote about my own design that ended it:</p>
+<blockquote>
+<p>A complete C resolver would effectively duplicate a compiler front end.</p>
+</blockquote>
+<p>I had a scanner that recognized declaration-like shapes and ranked them by nearest occurrence, running over source that hadn't been preprocessed, didn't track scope, and had no idea what a type was. It would have been right most of the time. That's exactly the problem. A wrong answer that shows up occasionally, dressed with the same confidence as a right one, is worse than a search that admits it found nothing. I was building a heuristic that would be correct often enough to be trusted and wrong often enough to matter, and calling it &quot;Go to Definition&quot; the whole time.</p>
+<h2 id="the-rename">The Rename</h2>
+<p>What I shipped instead wasn't a smaller version of that resolver. The lookup kept the lexical scan it already had: a search for concrete top-level definitions, project-wide, across loaded buffers and files still on disk. Nothing found gets an honest receipt instead of a guess. One match gets followed. More than one gets listed, and I pick, not the editor.</p>
+<p>I wrote the rule down so I can't quietly walk it back later:</p>
+<blockquote>
+<p>Definition navigation is a declared-language, lexical zero/one/many candidate locator, not symbol resolution... Zero candidates produces an honest receipt, one may be peeked or followed, and many are listed; never rank or guess.</p>
+</blockquote>
+<p>The only thing that changed was the name: Go to Definition became Locate Definition, same lookup, same code path, but a name that no longer promises something the implementation was never going to deliver.</p>
+<h2 id="where-structure-still-says-yes">Where Structure Still Says Yes</h2>
+<p>None of this means the editor stopped recognizing structure. The C99 function recognizer is still there, still doing real work, and the whole thing that gates it is one line:</p>
+<div class="code-wrapper"><pre><code class="language-c">static force_inline b32
+language_supports_functions(language_def* lang) {
+    return lang &amp;&amp; lang-&gt;segmenter == SEGMENTER_C99;
+}
+</code></pre></div>
+<p>That's the entire contract: a language either has a declared structural recognizer or it doesn't, and every consumer checks the same flag. Next and Previous Function run on it. So does the Function Picker, Select Whole Function, and Rewind, which addresses a function's entire history by its file and its recognized name instead of a line number. A function written in some shape the recognizer doesn't cover just doesn't show up anywhere, and I've made my peace with that. It's a much easier thing to defend than a recognizer that guesses.</p>
+<h2 id="two-languages-one-question">Two Languages, One Question</h2>
+<p>This editor is aimed at C and Jai, and I ended up writing down a version of this same rule for deciding what gets shared between them:</p>
+<blockquote>
+<p>Do C and Jai users want the same operation; can both implementations return the same small concrete result; and would correctness require compiler semantics? ... Semantic divergence is a stop sign, not an invitation to grow heuristics.</p>
+</blockquote>
+<p>If both languages want the same thing and both can hand back the same small result, I build one shared piece with a thin recognizer under each language. The moment correctness would need real compiler semantics, I stop, and I've been surprised how often that moment shows up earlier than I expect.</p>
+</div>
+</article><article class="post" id="2026-07-16-milestone-3-the-lexer">
     <header>
         <center><h1 class="post-title">Milestone 3 - The Lexer</h1></center>
         <time datetime="2026-07-16" class="post-date">July 16, 2026</time>
@@ -1135,7 +1178,7 @@ WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) {
             <hr />
             <ul class="toc-list">
                 <li><a href="#title">[Top]</a></li>
-                <li><a href="#2026-07-16-milestone-3-the-lexer">Milestone 3 - The Lexer</a></li><li><a href="#2026-05-06-google-fonts">Google Fonts</a></li><li><a href="#2026-04-24-microsoft-strikes-again">Microsoft Strikes Again</a></li><li><a href="#2026-01-14-refactor">Refactor</a></li><li><a href="#2025-12-11-milestone-2-gap-buffers">Milestone 2 - Gap Buffers</a></li><li><a href="#2025-12-03-milestone-1">Milestone 1</a></li><li><a href="#2025-12-01-getting-started">Getting Started</a></li><li><a href="#2025-11-21-looking-back">Looking Back</a></li>
+                <li><a href="#2026-08-12-zero-one-many">Zero One Many</a></li><li><a href="#2026-07-16-milestone-3-the-lexer">Milestone 3 - The Lexer</a></li><li><a href="#2026-05-06-google-fonts">Google Fonts</a></li><li><a href="#2026-04-24-microsoft-strikes-again">Microsoft Strikes Again</a></li><li><a href="#2026-01-14-refactor">Refactor</a></li><li><a href="#2025-12-11-milestone-2-gap-buffers">Milestone 2 - Gap Buffers</a></li><li><a href="#2025-12-03-milestone-1">Milestone 1</a></li><li><a href="#2025-12-01-getting-started">Getting Started</a></li><li><a href="#2025-11-21-looking-back">Looking Back</a></li>
             </ul>
         </aside>
     </div>
