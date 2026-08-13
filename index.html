@@ -16,8 +16,7 @@
         <time datetime="2026-08-12" class="post-date">August 12, 2026</time>
     </header>
     <hr />
-    <div class="post-content"><h1 id="zero-one-many">Zero, One, Many</h1>
-<blockquote>
+    <div class="post-content"><blockquote>
 <p>Understand text deeply, recognize structure cautiously, and never pretend to understand semantics.</p>
 </blockquote>
 <p>That's become something like a mantra for this part of the project. Everything below is what it took to actually earn it.</p>
@@ -47,7 +46,7 @@ language_supports_functions(language_def* lang) {
 </code></pre></div>
 <p>That's the entire contract: a language either has a declared structural recognizer or it doesn't, and every consumer checks the same flag. Next and Previous Function run on it. So does the Function Picker, Select Whole Function, and Rewind, which addresses a function's entire history by its file and its recognized name instead of a line number. A function written in some shape the recognizer doesn't cover just doesn't show up anywhere, and I've made my peace with that. It's a much easier thing to defend than a recognizer that guesses.</p>
 <h2 id="two-languages-one-question">Two Languages, One Question</h2>
-<p>This editor is aimed at C and Jai, and I ended up writing down a version of this same rule for deciding what gets shared between them:</p>
+<p>This editor is aimed at C with possible Jai support down the road, and I ended up writing down a version of this same rule for deciding what gets shared between them:</p>
 <blockquote>
 <p>Do C and Jai users want the same operation; can both implementations return the same small concrete result; and would correctness require compiler semantics? ... Semantic divergence is a stop sign, not an invitation to grow heuristics.</p>
 </blockquote>
