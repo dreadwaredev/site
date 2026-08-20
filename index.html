@@ -19,7 +19,7 @@
     <div class="post-content"><blockquote>
 <p>Understand text deeply, recognize structure cautiously, and never pretend to understand semantics.</p>
 </blockquote>
-<p>That's become something like a mantra for this part of the project. Everything below is what it took to actually earn it.</p>
+<p>That's become something like a mantra for this part of the project. Everything below is what it took to actually learn it.</p>
 <h2 id="the-spec">The Spec</h2>
 <p>Go to Definition was supposed to be simple. Find the function, jump to it. I started writing down what &quot;find the function&quot; actually had to mean, and the list didn't stop where I expected.</p>
 <p>A name typed at the cursor could be a local variable, a parameter, a for-loop declaration, an enum member, or the name in an ordinary field or global. I had to tell a real declaration apart from a call expression that merely looks like one, because <code>make_widget();</code> and <code>Widget w = make_widget();</code> are not the same thing and a naive scanner treats them alike. And once a function has more than one local candidate sharing a name, something has to decide which one wins, so I sketched a ranking rule: walk backward from the cursor first, then forward, and take whichever match is closest.</p>
